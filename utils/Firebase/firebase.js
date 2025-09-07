@@ -16,7 +16,7 @@ const serviceAccount = {
 
 initializeApp({
   credential: cert(serviceAccount),
-  storageBucket: 'uploaddocuments-3a515.appspot.com', // dhyaan do: usually `.appspot.com` hota hai
+  storageBucket: `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
 });
 
 const bucket = getStorage().bucket();
