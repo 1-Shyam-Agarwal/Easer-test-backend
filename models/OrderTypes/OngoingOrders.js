@@ -33,7 +33,7 @@ const onGoingOrdersSchema = new mongoose.Schema({
 
     orderStatus: {
         type: String,
-        enum: ['printing', 'waiting', 'completed'],
+        enum: ['waiting', 'printing', 'completed'],
         default: 'waiting',
         required: true,
     },
@@ -58,43 +58,26 @@ const onGoingOrdersSchema = new mongoose.Schema({
         required: true,
     },
 
-    // userOrderCancellation:
-    // {
-    //     type:Boolean,
-    //     default:false,
-    //     required:true,
-    // },
+    userOrderCancellation:
+    {
+        type:Boolean,
+        default:false,
+        required:true,
+    },
 
-    // vendorOrderCancellation :{
-    //     type :Boolean,
-    //     default : false,
-    //     required : true
-    // },
+    vendorOrderCancellation :{
+        type :Boolean,
+        default : false,
+        required : true
+    },
 
-    // timeOfTurn :{
-    //     type : Date
-    // },
+    timeOfPrinting : {
+        type : Date
+    },
 
-    // timeOfPrinting : {
-    //     type : Date
-    // },
-
-    // waitingTime:
-    // {
-    //     type:Number
-    // },
-
-    // notifyCustomerIndicator : {
-    //     type : Boolean,
-    //     required:true,
-    //     default:false
-    // },
-
-    // processOrderIndicator :{
-    //     type :Boolean,
-    //     required: true,
-    //     default : false
-    // },
+    timeOfCompletion : {
+        type : Date
+    },
 
     bankReferenceNumber: {
         type: String,
@@ -104,11 +87,11 @@ const onGoingOrdersSchema = new mongoose.Schema({
         type: String,
     },
 
-    // otp: {
-    //     type: String,
-    //     required: true,
-    //     unique: true,
-    // },
+    otp: {
+        type: String,
+        required: true,
+        unique: true,
+    },
 });
 
 module.exports = mongoose.model('onGoingOrders', onGoingOrdersSchema);

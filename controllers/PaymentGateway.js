@@ -7,7 +7,7 @@ require('dotenv').config();
 
 Cashfree.XClientId = process.env.CLIENT_ID;
 Cashfree.XClientSecret = process.env.CLIENT_SECRET;
-Cashfree.XEnvironment = Cashfree.Environment.PRODUCTION;
+Cashfree.XEnvironment = Cashfree.Environment.SANDBOX;
 
 exports.createPGOrder = async (req, res) => {
     const customerId = req.tokenPayload.id;
@@ -85,7 +85,7 @@ exports.createPGOrder = async (req, res) => {
         let request = {
             order_meta: {
                 payment_methods: "upi",
-                return_url: "https://www.easer.co.in/check-order",
+                return_url: "http://localhost:3000/check-order",
                 // notify_url: "https://localhost:3000"
             },
             order_amount: 1,

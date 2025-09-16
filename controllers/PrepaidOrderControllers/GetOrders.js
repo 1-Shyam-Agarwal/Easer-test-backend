@@ -254,12 +254,12 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
             });
         }
 
-        //Then findAll from the onGoingOrders and sort in the descedning of the time
+        //Then findAll from the onGoingOrders and sort in the ascedning order of the time
         let response = '';
         if (role === 'customer') {
             response = await onGoingOrders
                 .find({ user: id })
-                .select('-_id -user')
+                .select('-_id')
                 .populate({
                     path: 'vendor',
                     select: '-_id vendorAdditionalDetails userId',
@@ -269,22 +269,26 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
                     },
                 })
                 .populate({
-                    path: 'documents',
-                    select: '-_id',
+                    path: 'user',
+                    select: '-_id firstName lastName email mobileNumber',
                 });
         }
 
         if (role === 'vendor') {
             response = await onGoingOrders
                 .find({ vendor: id })
-                .select('-_id -vendor')
+                .select('-_id')
                 .populate({
                     path: 'user',
                     select: '-_id firstName lastName email mobileNumber userId',
                 })
                 .populate({
-                    path: 'documents',
-                    select: '-_id',
+                    path: 'vendor',
+                    select: '-_id vendorAdditionalDetails userId',
+                    populate: {
+                        path: 'vendorAdditionalDetails',
+                        select: '-_id shopName shopLandMark',
+                    },
                 });
         }
 

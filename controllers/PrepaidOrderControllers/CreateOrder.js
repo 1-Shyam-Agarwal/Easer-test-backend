@@ -1,11 +1,16 @@
 const { v4: uuidv4 } = require('uuid');
 const onGoingOrders = require('../../models/OrderTypes/OngoingOrders.js');
 const usersCollection = require('../../models/Users.js');
+const orderSummary = require("../../models/orderSummary.js");
+const {Mutex}  = require('async-mutex');
+
+const mutex = new Mutex();
 
 exports.createOrder = async (req, res) => {
     const customerId = req.tokenPayload.id;
 
     try {
+
         const {
             vendorID,
             filesWithConfigs,
@@ -18,172 +23,114 @@ exports.createOrder = async (req, res) => {
 
         console.log('custoemrkfn oreder creation : ', req.body);
 
-        if (!customerId) {
+        if (!customerId){
             return res.status(400).json({
                 success: false,
-                message: 'Please specify the userId.',
+                message: 'Please specify the customerId.',
             });
         }
 
-        //   if(!vendorID)
-        //   {
-        //     return res.status(400).json({
-        //       success : false,
-        //       message : "Please specify the vendorID"
-        //     })
-        //   }
+        if(!vendorID)
+        {
+            return res.status(400).json({
+                success : false,
+                message : "Please specify the vendorID"
+            })
+        }
 
-        //   if(!files)
-        //   {
-        //     return res.status(400).json({
-        //       success : false,
-        //       message : "Please specify the files."
-        //     })
-        //   }
+        if(!filesWithConfigs)
+        {
+            return res.status(400).json({
+                success : false,
+                message : "Please specify the files."
+            })
+        }
 
-        //   if(!Array.isArray(files))
-        //   {
-        //     return res.status(400).json({
-        //       success : false,
-        //       message : "Invalid files"
-        //     })
-        //   }
+        if(!Array.isArray(filesWithConfigs))
+        {
+            return res.status(400).json({
+                success : false,
+                message : "Invalid files"
+            })
+        }
 
-        //   if(!(files.length>0))
-        //   {
-        //     return res.status(400).json({
-        //       success : false,
-        //       message : "Files' length can't be zero"
-        //     })
-        //   }
+        if(!(filesWithConfigs.length>0))
+        {
+            return res.status(400).json({
+                success : false,
+                message : "Please specify the files."
+            })
+        }
 
-        //   if(!fileConfigs)
-        //     {
-        //       return res.status(400).json({
-        //         success : false,
-        //         message : "Please specify the fileConfigs."
-        //       })
-        //     }
+        if(!price)
+        {
+            return res.status(400).json({
+                success : false,
+                message : "Please specify price."
+            })
+        }
 
-        //     if(!Array.isArray(fileConfigs))
-        //     {
-        //       return res.status(400).json({
-        //         success : false,
-        //         message : "Invalid fileConfigs"
-        //       })
-        //     }
+        if(typeof price !== "number")
+        {
+            return res.status(400).json({
+                success : false,
+                message : "Invalid price."
+            })
+        }
 
-        //     if(!(fileConfigs.length>0))
-        //     {
-        //       return res.status(400).json({
-        //         success : false,
-        //         message : "FileConfigs' length can't be zero"
-        //       })
-        //     }
+        if(!(price>0))
+        {
+            return res.status(400).json({
+              success : false,
+              message : "Invalid price"
+            })
+        }
 
-        //     if(!price)
-        //     {
-        //       return res.status(400).json({
-        //         success : false,
-        //         message : "Please specify price."
-        //       })
-        //     }
 
-        //     if(typeof price !== "number")
-        //     {
-        //         return res.status(400).json({
-        //           success : false,
-        //           message : "Invalid price."
-        //         })
-        //     }
+        for(let i=0 ; i<filesWithConfigs.length ; i++)
+        {
+            if(typeof filesWithConfigs[i] === "object")
+            {
+                console.log("fileConfigs : " , filesWithConfigs[i]);
+                if(Object.keys(filesWithConfigs[i]).length===9)
+                {
+                    if("file" in filesWithConfigs[i] && 
+                       "name" in filesWithConfigs[i] && 
+                       "progress" in filesWithConfigs[i] &&
+                       "file_id" in filesWithConfigs[i] &&
+                       "file_ref" in filesWithConfigs[i] && 
+                       "uploading" in filesWithConfigs[i] && 
+                       "url" in filesWithConfigs[i] &&
+                       "pageCount" in filesWithConfigs[i] &&
+                       "fileConfigs" in filesWithConfigs[i] 
+                    ){}
+                    else
+                    {
+                        
+                        return res.status(400).json({
+                            success : false,
+                            message : "Invalid Files.Please Re-upload docs.No field"
+                        })
+                    }
 
-        //     if(!(price>0))
-        //     {
-        //         return res.status(400).json({
-        //           success : false,
-        //           message : "Price can't be less than or equal to zero"
-        //         })
-        //     }
+                }
+                else{
+                    return res.status(400).json({
+                        success : false,
+                        message : "Invalid Files. Please Re-upload docs.No lenght."
+                    })
+                }
 
-        //     if(files.length !== fileConfigs.length)
-        //     {
-        //       return res.status(400).json({
-        //         success : false,
-        //         message : "Files' length and Fileconfigs' length can't be different"
-        //       })
-        //     }
+            }
+            else
+            {
 
-        //     for(let i=0 ; i<files.length ; i++)
-        //     {
-        //         if(typeof files[i] === "object")
-        //         {
-
-        //           if(Object.keys(files[i]).length===3)
-        //           {
-        //               if("fileName" in files[i] && "public_id" in files[i] && "secure_url" in files[i]){}
-        //               else
-        //               {
-
-        //                 return res.status(400).json({
-        //                   success : false,
-        //                   message : "Files doesn't contain required field"
-        //                 })
-        //               }
-
-        //           }
-        //           else{
-        //             return res.status(400).json({
-        //               success : false,
-        //               message : "Files should have length equal to 3 ."
-        //             })
-        //           }
-
-        //         }
-        //         else
-        //         {
-
-        //           return res.status(400).json({
-        //             success : false,
-        //             message : "Files should be object."
-        //           })
-        //         }
-        //     }
-
-        //     for(let i=0 ; i<fileConfigs.length ; i++)
-        //     {
-        //         if(typeof fileConfigs[i] === "object")
-        //         {
-        //           if(Object.keys(fileConfigs[i]).length===6)
-        //           {
-        //               if("backToBack" in fileConfigs[i] && "color" in fileConfigs[i] && "copies" in fileConfigs[i] && "numberOfPages" in fileConfigs[i] && "orientation" in fileConfigs[i] && "specialRequest" in fileConfigs[i]){}
-        //               else
-        //               {
-
-        //                 return res.status(400).json({
-        //                   success : false,
-        //                   message : "Fileconfigs doesn't contain required field"
-        //                 })
-        //               }
-
-        //           }
-        //           else{
-
-        //             return res.status(400).json({
-        //               success : false,
-        //               message : "Fileconfigs should have length equal to 6"
-        //             })
-        //           }
-
-        //         }
-        //         else
-        //         {
-
-        //           return res.status(400).json({
-        //             success : false,
-        //             message : "Fileconfigs should be object"
-        //           })
-        //         }
-        //     }
+                return res.status(400).json({
+                success : false,
+                message : "Invalid Files. Please Re-upload docs."
+                })
+            }
+        }
 
         if (!paymentId) {
             return res.status(400).json({
@@ -198,43 +145,14 @@ exports.createOrder = async (req, res) => {
                 message: 'Bank reference number is required.',
             });
         }
-        // if(!["offline" , "online"].includes(paymentMode))
-        // {
-        //     return res.status(400).json({
-        //         success : false,
-        //         message : "Please Specify the Correct Payment Mode"
-        //     })
-        // }
 
-        // if(!["pending" , "paid"].includes(paymentStatus))
-        // {
-        //     return res.status(400).json({
-        //         success : false,
-        //         message : "Please Specify the Correct Payment Status"
-        //     })
-        // }
-
-        // if(paymentMode ==="offline")
-        // {
-        //     if(paymentStatus!=="pending")
-        //     {
-        //         return res.status(400).json({
-        //             success : false,
-        //             message : "Paymentmode and Paymentstatus are contradictory"
-        //         })
-        //     }
-        // }
-        // else
-        // {
-        //     if(paymentStatus!=="paid")
-        //     {
-        //         return res.status(400).json({
-        //             success : false,
-        //             message : "Paymentmode and Paymentstatus are contradictory"
-        //         })
-        //     }
-
-        // }
+        if(!paymentTime)
+        {
+            return res.status(400).json({
+                success: false,
+                message: 'Payment time  is required.',
+            }); 
+        }
 
         //creating UUID
         const orderID = uuidv4();
@@ -248,92 +166,89 @@ exports.createOrder = async (req, res) => {
         }
 
         // checking whether vendor is valid or not
-        const isVendorValid = await usersCollection
+        const [isVendorValid, isUserValid] = await Promise.all([
+        usersCollection
             .findOne({ userId: vendorID, role: 'vendor' })
             .select('_id vendorAdditionalDetails')
             .populate({
-                path: 'vendorAdditionalDetails',
-                select: '-_id priceSchema shopName shopLandMark',
-            });
+            path: 'vendorAdditionalDetails',
+            select: '-_id priceSchema shopName shopLandMark',
+            }),
+        usersCollection
+            .findOne({ _id: customerId, role: 'customer' })
+            .select('firstName lastName email mobileNumber userId'),
+        ]);
 
         if (!isVendorValid) {
-            return res.status(400).json({
-                success: false,
-                message: "Such Vendor doesn't exists",
-            });
+        return res.status(400).json({
+            success: false,
+            message: "Such Vendor doesn't exists",
+        });
         }
-
-        const isUserValid = await usersCollection
-            .findOne({ _id: customerId, role: 'customer' })
-            .select('firstName lastName email mobileNumber userId');
 
         if (!isUserValid) {
-            return res.status(400).json({
-                success: false,
-                message: "Such User doesn't exists",
-            });
+        return res.status(400).json({
+            success: false,
+            message: "Such User doesn't exists",
+        });
         }
 
-        //   //Checking the price with original price
-        //   const priceDetails = await priceModel.findOne({_id:isVendorValid.vendorAdditionalDetails.priceSchema})
-        //                                            .select("-_id -vendor");
+        
+        // *************************************************************
+        //Verify_price_Api hit karni hai idhar
 
-        //     let original_price = 0;
-        //     let numberofBlackAndWhitePrints_SingleSide = 0;
-        //     let numberofBlackAndWhitePrints_BackToBack = 0;
-        //     let numberofColoredPrints = 0;
 
-        //     const singleSide_BlackAndWhite_1 = priceDetails.singleSide_BlackAndWhite_1;
-        //     const singleSide_BlackAndWhite_2_5Includes5 = priceDetails.singleSide_BlackAndWhite_2_5Includes5;
-        //     const singleSide_BlackAndWhite_Above5 = priceDetails.singleSide_BlackAndWhite_Above5;
-        //     const backToBack_BlackAndWhite_LessThanEqualTo_4 = priceDetails.backToBack_BlackAndWhite_LessThanEqualTo_4;
-        //     const backToBack_BlackAndWhite_5_10Includes10 = priceDetails.backToBack_BlackAndWhite_5_10Includes10;
-        //     const backToBack_BlackAndWhite_MoreThan_10 = priceDetails.backToBack_BlackAndWhite_MoreThan_10;
-        //     const colorPrice = priceDetails.colorPrint;
+        //OTP generation
 
-        //     //Counting the pages
-        //     for(let i=0 ; i<fileConfigs.length ; i++)
-        //     {
+        //lana toh database mein se padega 
 
-        //         if(fileConfigs[i].color === "colored")
-        //         {
-        //             numberofColoredPrints+=((fileConfigs[i].numberOfPages)*fileConfigs[i].copies);
-        //         }
-        //         else
-        //         {
-        //             if(fileConfigs[i].backToBack)
-        //             {
-        //                 numberofBlackAndWhitePrints_BackToBack+=((fileConfigs[i].numberOfPages)*fileConfigs[i].copies);
-        //             }
-        //             else
-        //             {
-        //                 numberofBlackAndWhitePrints_SingleSide+=((fileConfigs[i].numberOfPages)*fileConfigs[i].copies);
-        //             }
-        //         }
-        //     }
+        //apply mutex and transaction
 
-        //     //Calculating the Price
+        const release = await mutex.acquire(); // acquire lock
 
-        //     //Including price of color Printouts
-        //     original_price+= numberofColoredPrints*colorPrice;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // store only date
+        let summaryResponse
 
-        //     //Including the BackToBack BW Printouts
-        //     if(numberofBlackAndWhitePrints_BackToBack <=4) original_price+= numberofBlackAndWhitePrints_BackToBack*backToBack_BlackAndWhite_LessThanEqualTo_4;
-        //     else if(numberofBlackAndWhitePrints_BackToBack >4 && numberofBlackAndWhitePrints_BackToBack<11) original_price+=  numberofBlackAndWhitePrints_BackToBack*backToBack_BlackAndWhite_5_10Includes10;
-        //     else if(numberofBlackAndWhitePrints_BackToBack >10) original_price+= numberofBlackAndWhitePrints_BackToBack*backToBack_BlackAndWhite_MoreThan_10;
+        try
+        {
+             summaryResponse = await orderSummary.findOneAndUpdate(
+            { date: today, user: isVendorValid._id }, // match by date + user
+            {
+                $inc: { onGoingOrders: 1 },
+                $setOnInsert: { date: today, user: isVendorValid._id }, // only set on creation
+            },
+            { new: true, upsert: true }
+            );
+        }
+        catch(e)
+        {
+            console.log("Error occured while fetching order summary during creation of order : " , e);
+            return res.status(500).json({
+                success : false,
+                message : e.message()
+            })
 
-        //     //Including the cost of Single Side BW printouts
-        //     if(numberofBlackAndWhitePrints_SingleSide === 1) original_price+= numberofBlackAndWhitePrints_SingleSide * singleSide_BlackAndWhite_1;
-        //     else if(numberofBlackAndWhitePrints_SingleSide>=2 && numberofBlackAndWhitePrints_SingleSide<=5 ) original_price+= numberofBlackAndWhitePrints_SingleSide * singleSide_BlackAndWhite_2_5Includes5;
-        //     else if(numberofBlackAndWhitePrints_SingleSide>5) original_price+= numberofBlackAndWhitePrints_SingleSide * singleSide_BlackAndWhite_Above5;
+        }
+        finally{
+            release();
+        }
+       
 
-        //     if(price !== original_price)
-        //     {
-        //       return res.status(400).json({
-        //         success : false,
-        //         message : "Price is altered."
-        //       })
-        //     }
+        let OTP;
+        do{
+             let starting = 1000 + 10 * (
+            (summaryResponse.onGoingOrders > 0 ? summaryResponse.onGoingOrders - 1 : 0) +
+            summaryResponse.UnreceivedOrders +
+            summaryResponse.cancelledOrders +
+            summaryResponse.orderHistory
+            );
+
+            let modification = Math.floor(Math.random() * 10); // random 0-9
+            OTP = starting + modification;
+            
+        }while(OTP in summaryResponse.usedOTP)
+
 
         // then creating the entry in the onGoing DB
         const onGoingDBResponse = await onGoingOrders.create({
@@ -345,12 +260,14 @@ exports.createOrder = async (req, res) => {
             paymentId,
             bankReferenceNumber,
             paymentTime,
+            otp:OTP 
         });
 
         return res.status(200).json({
             success: true,
             message: 'Order created Successfully',
         });
+
     } catch (e) {
         console.log('Error occured while creating the order : ', e);
         return res.status(500).json({
