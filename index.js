@@ -24,7 +24,7 @@ const corsOption = {
         'http://localhost:3000',
         'https://easer.co.in',
         'https://www.easer.co.in',
-        'https://49f7fa9086b8.ngrok-free.app'
+        'https://easer-frontend-testing.vercel.app'
     ],
     credentials: true,
 };
