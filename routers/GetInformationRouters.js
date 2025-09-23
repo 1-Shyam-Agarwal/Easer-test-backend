@@ -40,13 +40,13 @@ router.post('/get-user-id', auth, getUserId);
 
 // //<-------------------------------------Get Vendor related Information --------------------------------------->
 
-// const {
-//         getShopStatus,
-//         getShopInfo
-//       } = require("../controllers/GetInformationControllers/GetUserInformation.js");
+const {
+        getShopStatus,
+      } = require("../controllers/GetInformationControllers/GetUserInformation.js");
 
-// router.post("/get-shop-status" ,auth , isUser, getShopStatus);
+router.post("/get-shop-status" ,auth , getShopStatus);
 // router.post("/get-shop-information" , getShopInfo)
+
 
 const {
     getFilteredVendorsWithMinimumDetailsController,

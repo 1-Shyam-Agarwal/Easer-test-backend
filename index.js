@@ -12,9 +12,11 @@ const App = express();
 
 const portNo = process.env.PORT || 4000;
 
-App.listen(portNo, () => {
-    console.log(`The server is active at ${portNo}`);
-});
+// App.listen(portNo, () => {
+//     console.log(`The server is active at ${portNo}`);
+// });
+
+
 
 // Enable CORS for all routes
 const corsOption = {
@@ -22,9 +24,12 @@ const corsOption = {
         'http://localhost:3000',
         'https://easer.co.in',
         'https://www.easer.co.in',
+        'https://49f7fa9086b8.ngrok-free.app'
     ],
     credentials: true,
 };
+
+// App.set('trust proxy', 1); // or true
 
 App.use(cors(corsOption));
 
@@ -49,7 +54,7 @@ const inboxOrdersRouters = require('./routers/OutboxOrdersRouters.js');
 const paymentGatewayRouters = require('./routers/PaymentGatewayRouters.js');
 const prepaidOrdersRouters = require('./routers/PrepaidOrdersRouters.js');
 const resetDetailsRouters = require('./routers/ResetDetailsRouters.js');
-
+const NotificationRouters = require("./routers/NotificationRouter.js")
 // App.use('/api/v1' , AdminRouters);
 App.use('/api/v1', authRouters);
 App.use('/api/v1', generalRouters);
@@ -58,3 +63,6 @@ App.use('/api/v1', inboxOrdersRouters);
 App.use('/api/v1', paymentGatewayRouters);
 App.use('/api/v1', prepaidOrdersRouters);
 App.use('/api/v1', resetDetailsRouters);
+App.use("/api/v1" , NotificationRouters);
+
+App.listen(5000, "0.0.0.0", () => console.log("Server running"));

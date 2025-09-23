@@ -22,10 +22,11 @@ const googleSignupTemp = require('../../models/TemporaryStorage/googleSignupTemp
 async function preCustomSignupCheckController(req, res, next) {
     //Extracting user signup data from the request body.
     //userSignupInfo contains 3 fields -> collegeCode , email and mobile Number
-    let { email, collegeCode, mobileNumber } = req.body;
+    let { email, collegeCode, mobileNumber,username } = req.body;
+
 
     //validate the details
-    if (!email || !mobileNumber || !collegeCode) {
+    if (!email || !mobileNumber || !collegeCode || !username) {
         return res.status(400).json({
             success: false,
             message: 'All fields are required.',
@@ -35,6 +36,7 @@ async function preCustomSignupCheckController(req, res, next) {
     //Removing spaces from left and right
     email = email.trim().toLowerCase();
     mobileNumber = mobileNumber.trim();
+    usernmae = username.trim().toLowerCase();
 
     // Validate email format using a regular expression
     const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
@@ -51,6 +53,15 @@ async function preCustomSignupCheckController(req, res, next) {
         return res.status(400).json({
             success: false,
             message: 'Invalid mobile number',
+        });
+    }
+
+    //validate the username
+    if(username.length > 100)
+    {
+        return res.status(400).json({
+            success: false,
+            message: 'Username cannot exceed 100 characters',
         });
     }
 
@@ -227,8 +238,16 @@ async function saveCustomSignupDetailsController(req, res) {
     //extract details
     const collegeCode = req.body.collegeCode;
     let email = req.body.email;
+    let username = req.body.username;
     let mobileNumber = req.body.mobileNumber;
     const collegeId = req.body.collegeId;
+    let device = req.body.device;
+
+    if(!device)
+    {
+        device = "Unknown Device"
+    }
+
 
     //Creating account in db
     let response;
@@ -237,13 +256,14 @@ async function saveCustomSignupDetailsController(req, res) {
         const userId = uuidv4();
         response = await usersCollection.create({
             role: 'customer',
-            firstName: userName,
+            firstName: username,
             lastName: '',
             email: email,
             mobileNumber,
             collegeCode: collegeId,
             profileImage: `https://api.dicebear.com/9.x/initials/svg?seed=${userName}`,
             userId,
+            sessions: [], // Initialize sessions as an empty array
         });
     } catch (error) {
         console.log(
@@ -266,6 +286,14 @@ async function saveCustomSignupDetailsController(req, res) {
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
         expiresIn: '1y',
     });
+
+    response.sessions.push({
+        device: device,
+        loginAt: new Date(),
+        token: token,
+    });
+
+    await response.save();
 
     return res.status(200).json({
         success: true,

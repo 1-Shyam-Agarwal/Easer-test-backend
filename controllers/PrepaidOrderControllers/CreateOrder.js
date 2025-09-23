@@ -21,7 +21,6 @@ exports.createOrder = async (req, res) => {
             paymentTime,
         } = req.body;
 
-        console.log('custoemrkfn oreder creation : ', req.body);
 
         if (!customerId){
             return res.status(400).json({
@@ -87,48 +86,89 @@ exports.createOrder = async (req, res) => {
         }
 
 
-        for(let i=0 ; i<filesWithConfigs.length ; i++)
-        {
-            if(typeof filesWithConfigs[i] === "object")
-            {
-                console.log("fileConfigs : " , filesWithConfigs[i]);
-                if(Object.keys(filesWithConfigs[i]).length===9)
-                {
-                    if("file" in filesWithConfigs[i] && 
-                       "name" in filesWithConfigs[i] && 
-                       "progress" in filesWithConfigs[i] &&
-                       "file_id" in filesWithConfigs[i] &&
-                       "file_ref" in filesWithConfigs[i] && 
-                       "uploading" in filesWithConfigs[i] && 
-                       "url" in filesWithConfigs[i] &&
-                       "pageCount" in filesWithConfigs[i] &&
-                       "fileConfigs" in filesWithConfigs[i] 
-                    ){}
-                    else
-                    {
-                        
+        for (let i = 0; i < filesWithConfigs.length; i++) {
+            if (typeof filesWithConfigs[i] === 'object') {
+                console.log(Object.keys(filesWithConfigs[i]).length );
+                if (Object.keys(filesWithConfigs[i]).length === 11) {
+                    if (
+                        'file' in filesWithConfigs[i] &&
+                        'fileConfigs' in filesWithConfigs[i] &&
+                        'fileSize' in filesWithConfigs[i] &&
+                        'file_id' in filesWithConfigs[i] &&
+                        'file_ref' in filesWithConfigs[i] &&
+                        'name' in filesWithConfigs[i] &&
+                        'pageCount' in filesWithConfigs[i] &&
+                        'progress' in filesWithConfigs[i] &&
+                        'uploading' in filesWithConfigs[i] &&
+                        'url' in filesWithConfigs[i] &&
+                        'fileType' in filesWithConfigs[i]
+                    ) {
+                        if(filesWithConfigs[i].fileType !== "application/pdf")
+                        {
+                            return res.status(400).json({
+                                success: false,
+                                message: "Only PDFs are allowed",
+                            });
+                        }
+
+                        if(filesWithConfigs[i].fileSize > 30*1024*1024)
+                        {   
+                            return res.status(400).json({
+                                success: false,
+                                message: "File size should be less than 30MB",
+                            });
+                        }
+
+                    } else {
                         return res.status(400).json({
-                            success : false,
-                            message : "Invalid Files.Please Re-upload docs.No field"
-                        })
+                            success: false,
+                            message: "Files doesn't contain required field",
+                        });
                     }
-
-                }
-                else{
+                } else {
                     return res.status(400).json({
-                        success : false,
-                        message : "Invalid Files. Please Re-upload docs.No lenght."
-                    })
+                        success: false,
+                        message: 'Files should have length equal to 11 .',
+                    });
                 }
-
-            }
-            else
-            {
-
+            } else {
                 return res.status(400).json({
-                success : false,
-                message : "Invalid Files. Please Re-upload docs."
-                })
+                    success: false,
+                    message: 'Files should be object.',
+                });
+            }
+        }
+
+        for (let i = 0; i < filesWithConfigs.length; i++) {
+
+            const fileConfigs = filesWithConfigs[i].fileConfigs;
+
+            if (typeof fileConfigs === 'object') {
+                if (Object.keys(fileConfigs).length === 4) {
+                    if (
+                        'backToBack' in fileConfigs &&
+                        'color' in fileConfigs &&
+                        'copies' in fileConfigs &&
+                        'orientation' in fileConfigs 
+                    ) {} 
+                    else {
+                        return res.status(400).json({
+                            success: false,
+                            message:
+                                "Fileconfigs doesn't contain required field",
+                        });
+                    }
+                } else {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Fileconfigs should have length equal to 4',
+                    });
+                }
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Fileconfigs should be object',
+                });
             }
         }
 
@@ -233,6 +273,7 @@ exports.createOrder = async (req, res) => {
         finally{
             release();
         }
+
        
 
         let OTP;
@@ -249,6 +290,37 @@ exports.createOrder = async (req, res) => {
             
         }while(OTP in summaryResponse.usedOTP)
 
+        const ongoingOrderResponse = await onGoingOrders.find({vendor : isVendorValid._id , orderStatus :"waiting"})
+                                                        .populate("user");
+
+        let totalTime = 0;
+        let pageCount = 0;
+        
+        const currentTime = new Date();
+        
+        let len = ongoingOrderResponse.length;
+
+        ongoingOrderResponse.forEach(order => {
+
+            let n = order.documents.length;
+
+            for(let i=0 ; i<n ; i++)
+            {
+                pageCount +=order.documents[i].pageCount;
+                console.log("pageCount : " , pageCount);
+            }
+            
+        })
+
+        
+
+        totalTime = pageCount * 1.25; //in sec
+        console.log("totalTime insec: " , totalTime);
+        totalTime = Math.floor(totalTime / 60); //in mins
+        totalTime = totalTime + len*0.75; //additional time of 10 mins
+
+        console.log("totalTime : " , totalTime);
+
 
         // then creating the entry in the onGoing DB
         const onGoingDBResponse = await onGoingOrders.create({
@@ -260,7 +332,8 @@ exports.createOrder = async (req, res) => {
             paymentId,
             bankReferenceNumber,
             paymentTime,
-            otp:OTP 
+            otp:OTP,
+            remainingTime : totalTime,
         });
 
         return res.status(200).json({

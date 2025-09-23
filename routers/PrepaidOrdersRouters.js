@@ -19,9 +19,14 @@ const {
     createOrder,
 } = require('../controllers/PrepaidOrderControllers/CreateOrder.js');
 
+const {
+    createOrderHistory
+} = require("../controllers/PrepaidOrderControllers/OrderOperations.js");
+
 // router.post("/validate-file-format-and-size-and-upload",auth,isUser, validateFileFormatAndSizeController , uploadDocument);
 // router.post("/validate-order", auth , isUser , validateOrder);
 router.post('/create-order', auth, isCustomer, createOrder);
+router.post('/create-order-history' , auth , isCustomer , createOrderHistory);
 // router.post("/delete-document" ,auth , isUser ,deleteFileFromCloudinary);
 
 // // *************************************************************************************************************************
@@ -29,7 +34,7 @@ router.post('/create-order', auth, isCustomer, createOrder);
 //                                                 //   Get Orders
 
 // // ***************************************************************************************************************************
-// const {getAllOrdersOfVendor, getAllCancelledOrders ,  getAllOrdersOfVendor, getAllSpecificUnreceivedOrders , getAllSpecificOrderHistory} = require("../controllers/PrepaidOrderControllers/GetOrders.js");
+const { getAllSpecificOrderHistory} = require("../controllers/PrepaidOrderControllers/GetOrders.js");
 const {
     getAllSpecificOnGoingOrders,
     getSpecificOnlineOrderDetails,
@@ -44,7 +49,7 @@ router.post(
 );
 router.post('/get-specific-online-order', auth, getSpecificOnlineOrderDetails);
 // router.post("/get-all-specific-unreceived-orders" , auth , getAllSpecificUnreceivedOrders);
-// router.post("/fetch-order-history",auth,getAllSpecificOrderHistory);
+router.post("/fetch-order-history",auth,getAllSpecificOrderHistory);
 
 // // *************************************************************************************************************************
 
@@ -64,13 +69,17 @@ router.post('/get-specific-online-order', auth, getSpecificOnlineOrderDetails);
 
 // // ***************************************************************************************************************************
 
-// const{ sendMessageToCustomer , SetNotifyCustomerIndicator ,setProcessOrderIndicator,desetProcessOrderIndicator,completeOrder,OrderReceiver } = require("../controllers/PrepaidOrderControllers/OrderOperations.js");
+const{completeOrder , ongoingOrderCount_TimeCalculation} = require("../controllers/PrepaidOrderControllers/OrderOperations.js");
 
-// router.post("/set-notify-customer-indicator" ,auth,isVendor, SetNotifyCustomerIndicator);
-// router.post("/send-message-to-customer",auth,isVendor,sendMessageToCustomer);
-// router.post("/set-process-order-indicator" ,auth,isVendor, setProcessOrderIndicator);
-// router.post("/complete-user-order" ,auth ,isVendor,completeOrder );
-// router.post("/order-history-creator",auth , isVendor,OrderReceiver);
-// router.post("/deset-process-indicator" , auth , isVendor , desetProcessOrderIndicator );
+router.post("/complete-user-order" ,auth ,isVendor,completeOrder );
+router.post("/get-time-estimate-and-orders-count" , auth , isCustomer , ongoingOrderCount_TimeCalculation );
+
+
+const {validateOrderAndPriceGeneration} = require("../controllers/PrepaidOrderControllers/validation.js");
+
+router.post("/validate-order-and-generate-price" , auth , isCustomer , validateOrderAndPriceGeneration);
+
+// *************************************************************************************************************************
+
 
 module.exports = router;

@@ -2,6 +2,7 @@ const usersCollection = require('../../models/Users.js');
 
 exports.getShopStatus = async (req, res) => {
     try {
+        
         const { vendorId } = req.body;
 
         if (!vendorId) {
@@ -29,8 +30,9 @@ exports.getShopStatus = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Shop status fetched successfully',
-            data: isVendorValid,
+            shopStatus: isVendorValid.vendorAdditionalDetails.isShopOpen,
         });
+
     } catch (error) {
         console.log('Error occured while fetching the shop status : ', error);
         return res.status(400).json({

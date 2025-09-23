@@ -1,5 +1,6 @@
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getStorage } = require('firebase-admin/storage');
+const { getMessaging } = require("firebase-admin/messaging");
 
 const serviceAccount = {
   type: "service_account",
@@ -14,11 +15,13 @@ const serviceAccount = {
   client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL}`
 };
 
-initializeApp({
+const app = initializeApp({
   credential: cert(serviceAccount),
   storageBucket: `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
 });
 
 const bucket = getStorage().bucket();
 
-module.exports = bucket;
+const messaging = getMessaging(app);
+
+module.exports = { bucket, messaging };

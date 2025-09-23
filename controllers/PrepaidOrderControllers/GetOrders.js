@@ -1,226 +1,18 @@
 const onGoingOrders = require('../../models/OrderTypes/OngoingOrders.js');
 const usersCollection = require('../../models/Users.js');
-// const documents = require("../../models/documents.js");
-// const cancelledOrders = require("../../models/cancelledOrders.jsx");
-// const unreceivedOrders  = require("../../models/unReceivedOrders.js");
-// const vendorAdditionalDetails = require("../../models/vendorInfo.js");
-// const fineSchema = require("../../models/FineSchema.jsx");
-
-exports.getAllOrdersOfVendor = async (req, res) => {
-    try {
-        //extract the data from the user
-        const { vendorID } = req.body;
-        const { id, role } = req.tokenPayload;
-
-        if (!role) {
-            return res.status(400).json({
-                success: false,
-                message: 'Role is missing.',
-            });
-        }
-
-        if (!['customer', 'vendor'].includes(role)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid Role',
-            });
-        }
-
-        if (!id) {
-            return res.status(400).json({
-                success: false,
-                message: 'Id is missing.',
-            });
-        }
-
-        // validating the data
-        let isVendorValid = '';
-        if (role === 'customer') {
-            if (!vendorID) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Please Specify the vendorID',
-                });
-            }
-            isVendorValid = await usersCollection.findOne({
-                role: 'vendor',
-                userId: vendorID,
-            });
-
-            if (!isVendorValid) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Such Vendor doesn't exists",
-                });
-            }
-        }
-
-        let userData = await usersCollection.findOne({ _id: id });
-
-        if (!userData) {
-            return res.status(400).json({
-                success: false,
-                message: `Such ${role} doesn't exists`,
-            });
-        }
-
-        let response = '';
-        let processedResponse = '';
-        if (role === 'customer') {
-            response = await onGoingOrders
-                .find({ vendor: isVendorValid._id })
-                .select(
-                    '-_id paymentMode orderStatus orderId user documents waitingTime userOrderCancellation vendorOrderCancellation notifyCustomerIndicator processOrderIndicator timeOfTurn'
-                )
-                .populate([
-                    {
-                        path: 'user',
-                        select: '_id firstName lastName',
-                    },
-                ]);
-            console.log(' order : ', response);
-
-            // processedResponse = response.map((order)=>
-            // {
-            //     const orderObject = order.toObject();
-            //     const isUserMatch = orderObject.user && orderObject.user._id.toString() === id;
-
-            //     return {
-            //         ...orderObject,
-            //         documents : orderObject.documents.documents.length,
-            //         user : (isUserMatch ? {firstName : orderObject.user.firstName , lastName : orderObject.user.lastName} : {firstName : orderObject.user.firstName.charAt(0) , lastName : orderObject.user.lastName.charAt(0)} ),
-            //         yourOrder:(isUserMatch ? true : false),
-            //         timeOfTurn : (isUserMatch ? orderObject.timeOfTurn : undefined)
-            //     }
-
-            // })
-        }
-
-        if (role === 'vendor') {
-            return res.status(400).json({
-                success: false,
-                message: "Vendor can't access this page",
-            });
-        }
-
-        //return
-        return res.status(200).json({
-            success: true,
-            message: 'Data is fetched successfully',
-            data: processedResponse,
-        });
-    } catch (e) {
-        console.log(
-            'Error occured while fetching all the orders of a particular vendor : ',
-            e
-        );
-        return res.status(500).json({
-            success: false,
-            message: 'ERROR OCCURED',
-            error: e.message,
-        });
-    }
-};
-
-exports.getAllCancelledOrders = async (req, res) => {
-    try {
-        //Extarct id from the req body
-        const { id, role } = req.tokenPayload;
-
-        //Then check whether the id is empty or not
-        if (!id) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please Specify your ID',
-            });
-        }
-
-        if (!role) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please Specify your Role',
-            });
-        }
-
-        if (!['user', 'vendor'].includes(role)) {
-            return res.status(400).json({
-                success: false,
-                message: "Such Role doesn't exists",
-            });
-        }
-
-        let isIdValid = '';
-        if (role === 'user') {
-            isIdValid = await users
-                .findOne({ _id: id })
-                .select('-_id cancelledOrders ')
-                .populate({
-                    path: 'cancelledOrders',
-                    select: '-_id -user',
-                    populate: [
-                        {
-                            path: 'vendor',
-                            select: '-_id vendorAdditionalDetails',
-                            populate: [
-                                {
-                                    path: 'vendorAdditionalDetails',
-                                    select: '-_id shopName shopLandMark',
-                                },
-                            ],
-                        },
-                    ],
-                })
-                .sort({ 'times.timeOfCancellation': -1 });
-        }
-
-        if (role === 'vendor') {
-            isIdValid = await users
-                .findOne({ _id: id })
-                .select('-_id cancelledOrders')
-                .populate({
-                    path: 'cancelledOrders',
-                    select: '-_id -vendor',
-                    populate: [
-                        {
-                            path: 'user',
-                            select: '-_id firstName lastName email mobileNumber',
-                        },
-                    ],
-                })
-                .sort({ 'times.timeOfCancellation': -1 });
-        }
-
-        if (!isIdValid) {
-            return res.status(400).json({
-                success: false,
-                message: "Such User doesn't exists",
-            });
-        }
-
-        //send in the res body
-        return res.status(200).json({
-            success: true,
-            message: 'cancelled Orders are successfully fetched',
-            response: isIdValid,
-            role: role,
-        });
-    } catch (error) {
-        console.log(
-            'Error occured while fetching cancelled orders of sepcific user : ',
-            error
-        );
-        return res.status(500).json({
-            success: false,
-            message: 'Internal Server Problem',
-            error,
-        });
-    }
-};
 
 exports.getAllSpecificOnGoingOrders = async (req, res) => {
     try {
         //Extract the UserId from the req body
         const { id, role } = req.tokenPayload;
+
+        if(!id)
+        {
+            return res.status(400).json({
+                success: false,
+                message: 'Id is missing.',
+            })
+        }
 
         //check whether the usrId is empty or not
         if (!role) {
@@ -237,13 +29,6 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
             });
         }
 
-        if (!id) {
-            return res.status(400).json({
-                success: false,
-                message: 'Id is missing.',
-            });
-        }
-
         // check whether is user it exists or not
         const isUseridValid = await usersCollection.findOne({ _id: id });
 
@@ -257,8 +42,10 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
         //Then findAll from the onGoingOrders and sort in the ascedning order of the time
         let response = '';
         if (role === 'customer') {
-            response = await onGoingOrders
-                .find({ user: id })
+            response = await onGoingOrders.find({
+                user: id,
+                orderStatus: { $in: ["waiting", "completed"] }
+                })
                 .select('-_id')
                 .populate({
                     path: 'vendor',
@@ -271,12 +58,13 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
                 .populate({
                     path: 'user',
                     select: '-_id firstName lastName email mobileNumber',
-                });
+                })
+                .sort({ orderedAt: 1 });
         }
 
         if (role === 'vendor') {
             response = await onGoingOrders
-                .find({ vendor: id })
+                .find({ vendor: id ,orderStatus:'waiting'})
                 .select('-_id')
                 .populate({
                     path: 'user',
@@ -299,10 +87,12 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
             data: response,
         });
     } catch (error) {
+
         console.log(
             'Error occured while fetching ongoing orders of sepcific user : ',
             error
         );
+
         return res.status(500).json({
             success: false,
             message: 'Internal Server Problem',
@@ -447,6 +237,8 @@ exports.getAllSpecificOrderHistory = async (req, res) => {
         //Extract Id , role from the body
         const { id, role } = req.tokenPayload;
 
+        console.log("id : " , id)
+
         //Check whether the Id is empty or not
         if (!id) {
             return res.status(400).json({
@@ -464,7 +256,7 @@ exports.getAllSpecificOrderHistory = async (req, res) => {
         }
 
         //check whether the role is valid or not
-        if (!['user', 'vendor'].includes(role)) {
+        if (!['customer', 'vendor'].includes(role)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid role entered',
@@ -472,7 +264,7 @@ exports.getAllSpecificOrderHistory = async (req, res) => {
         }
 
         //Check whether the Id is valid or not
-        let isUseridValid = await users.findOne({ _id: id });
+        let isUseridValid = await usersCollection.findOne({ _id: id });
 
         if (!isUseridValid) {
             return res.status(400).json({
@@ -498,24 +290,23 @@ exports.getAllSpecificOrderHistory = async (req, res) => {
                 .select('-_id orderHistory');
         }
 
-        if (role === 'user') {
-            response = await users
-                .findById(id)
+        if (role === 'customer') {
+            response = await onGoingOrders
+                .find({user:id , orderStatus:"received"})
+                .select('-_id')
                 .populate({
-                    path: 'orderHistory',
-                    populate: [
-                        {
-                            path: 'vendor',
-                            select: '-_id vendorAdditionalDetails',
-                            populate: {
-                                path: 'vendorAdditionalDetails',
-                                select: '-_id shopName shopLandMark',
-                            },
-                        },
-                    ],
-                    select: '-_id -user',
+                    path: 'vendor',
+                    select: '-_id vendorAdditionalDetails userId',
+                    populate: {
+                        path: 'vendorAdditionalDetails',
+                        select: '-_id shopName shopLandMark',
+                    },
                 })
-                .select('-_id orderHistory');
+                .populate({
+                    path: 'user',
+                    select: '-_id firstName lastName email mobileNumber',
+                })
+                .sort({ orderedAt: -1 });
         }
 
         //return data

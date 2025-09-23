@@ -33,7 +33,7 @@ const onGoingOrdersSchema = new mongoose.Schema({
 
     orderStatus: {
         type: String,
-        enum: ['waiting', 'printing', 'completed'],
+        enum: ['waiting', 'completed','received'],
         default: 'waiting',
         required: true,
     },
@@ -58,29 +58,31 @@ const onGoingOrdersSchema = new mongoose.Schema({
         required: true,
     },
 
-    userOrderCancellation:
-    {
-        type:Boolean,
-        default:false,
-        required:true,
-    },
-
-    vendorOrderCancellation :{
-        type :Boolean,
-        default : false,
-        required : true
-    },
-
-    timeOfPrinting : {
-        type : Date
-    },
-
     timeOfCompletion : {
         type : Date
     },
 
+    timeOfProcessing : {
+        type : Date
+    },
+
+    cancelledBy : {
+        type : String,
+        enum : ['vendor' , 'customer']
+    },
+
+    refunded :{
+        type : Boolean,
+        enum : [true , false , null],
+        default : null
+    },
+
     bankReferenceNumber: {
         type: String,
+    },
+
+    refundBankReferenceNumber :{
+        type : String
     },
 
     paymentId: {
@@ -92,6 +94,21 @@ const onGoingOrdersSchema = new mongoose.Schema({
         required: true,
         unique: true,
     },
+
+    
+    recievedBy:{
+        type : mongoose.Schema.Types.ObjectId,
+        ref : 'usersCollection'
+    },
+
+    timeOfRecieving : {
+        type : Date
+    },
+
+    remainingTime:{
+        type: Number,
+        required: true
+    }
 });
 
 module.exports = mongoose.model('onGoingOrders', onGoingOrdersSchema);

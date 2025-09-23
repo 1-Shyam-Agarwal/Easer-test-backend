@@ -292,6 +292,15 @@ async function verifyLoginOtp(req, res, next) {
     //Extracting the info from the body
     const typedOtp = req.body.otp;
     let email = req.body.email;
+    let device = req.body.device;
+
+    if(!device)
+    {
+        return res.status(400).json({
+            success: false,
+            message: 'Device is required.',
+        });
+    }
 
     if (!email) {
         return res.status(400).json({
@@ -415,12 +424,46 @@ async function verifyLoginOtp(req, res, next) {
             expiresIn: '1y',
         });
 
+        try {
+            let user = isEmailAlreadyExists;
+
+            // Ensure sessions field exists
+            if (!user.sessions) {
+                user.sessions = [];
+            }
+
+            // If user already has 3 sessions, remove the earliest (based on loginAt)
+            // if (user.sessions.length >= 3) {
+            //     // Sort sessions by loginAt ascending (earliest first)
+            //     user.sessions.sort((a, b) => new Date(a.loginAt) - new Date(b.loginAt));
+            //     user.sessions.shift(); // remove the earliest
+            // }
+
+            // Push the new session
+            user.sessions.push({
+                token: token,
+                device: device,
+                loginAt: new Date()
+            });
+
+            await user.save();
+
+
+        } catch (e) {
+            console.log("Error while creating session: ", e);
+            return res.status(500).json({
+                success: false,
+                message: "Internal Server Error."
+            });
+        }
+
         return res.status(200).json({
             success: true,
             easerSecurityTicket: token,
             profileImage: isEmailAlreadyExists.profileImage,
             message: 'Customer is logged in successfully.',
         });
+        
     } else {
         return res.status(401).json({
             success: false,

@@ -1,102 +1,15 @@
-const { trusted } = require('mongoose');
-const OrdersModel = require('../../models/OrderTypes/OngoingOrders.js');
 const usersCollection = require('../../models/Users.js');
-const cancelledOrders = require('../../models/OrderTypes/CancelledOrders.js');
-const { v4: uuidv4 } = require('uuid');
-const DocumentsModel = require('../../models/documents.js');
-const { forEach } = require('jszip');
-const cloudinary = require('cloudinary').v2;
-const priceModel = require('../../models/priceSchema.js');
 
-exports.validateFileFormatAndSizeController = (req, res, next) => {
+
+exports.validateOrderAndPriceGeneration = async (req, res) => {
     try {
-        //extracting file Format and size
-        const { format, size } = req.body;
+        const { filesWithConfigs } = req.body;
 
-        const formats = ['pdf'];
-
-        // checking whether both are present or not
-        if (!format) {
-            return res.status(400).json({
-                success: false,
-                message: "You haven't specify format of the File",
-            });
-        }
-
-        if (!size) {
-            return res.status(400).json({
-                success: false,
-                message: "You haven't specify size of the File",
-            });
-        }
-
-        if (isNaN(parseFloat(size))) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid File Size',
-            });
-        }
-
-        if (!formats) {
-            return res.status(400).json({
-                success: false,
-                message: "You haven't specify formats",
-            });
-        }
-
-        if (!(typeof format === 'string')) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid File Format',
-            });
-        }
-
-        if (!Array.isArray(formats)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid Formats',
-            });
-        }
-
-        if (!formats.includes(format)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid File Format',
-            });
-        }
-
-        if (size <= 0) {
-            return res.status(400).json({
-                success: false,
-                message: `File Size should be greater than 0 `,
-            });
-        }
-
-        if (size > 9) {
-            return res.status(400).json({
-                success: false,
-                message: `File Size is greater than 9Mb`,
-            });
-        }
-
-        next();
-    } catch (error) {
-        console.log(
-            'Error occured while validating the uploaded file format and size : ',
-            error
-        );
-        return res.status(500).json({
-            success: false,
-            message: 'Internal Server Problem',
-        });
-    }
-};
-
-exports.validateOrder = async (req, res) => {
-    try {
-        const { vendorID, files, fileConfigs, price } = req.body;
         const { id } = req.tokenPayload;
         const userID = id;
+
+        let vendorID = req.body.vendorID;
+        vendorID = "b53bc873-91d4-4028-bde6-f67eabab6c83"   //temporary
 
         if (!userID) {
             return res.status(400).json({
@@ -112,85 +25,61 @@ exports.validateOrder = async (req, res) => {
             });
         }
 
-        if (!files) {
+        if(!filesWithConfigs)
+        {
             return res.status(400).json({
                 success: false,
                 message: 'Please specify the files.',
             });
         }
 
-        if (!Array.isArray(files)) {
+        if (!Array.isArray(filesWithConfigs)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid files',
             });
         }
 
-        if (!(files.length > 0)) {
+        if (filesWithConfigs?.length<=0 || filesWithConfigs?.length>25) {
             return res.status(400).json({
                 success: false,
-                message: "Files' length can't be zero",
+                message: 'Please specify the files. Maximum 25 files are allowed',
             });
         }
 
-        if (!fileConfigs) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please specify the fileConfigs.',
-            });
-        }
-
-        if (!Array.isArray(fileConfigs)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid fileConfigs',
-            });
-        }
-
-        if (!(fileConfigs.length > 0)) {
-            return res.status(400).json({
-                success: false,
-                message: "FileConfigs' length can't be zero",
-            });
-        }
-
-        if (!price) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please specify price.',
-            });
-        }
-
-        if (typeof price !== 'number') {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid price.',
-            });
-        }
-
-        if (!(price > 0)) {
-            return res.status(400).json({
-                success: false,
-                message: "Price can't be less than or equal to zero",
-            });
-        }
-
-        if (files.length !== fileConfigs.length) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Files' length and Fileconfigs' length can't be different",
-            });
-        }
-
-        for (let i = 0; i < files.length; i++) {
-            if (typeof files[i] === 'object') {
-                if (Object.keys(files[i]).length === 3) {
+        for (let i = 0; i < filesWithConfigs.length; i++) {
+            if (typeof filesWithConfigs[i] === 'object') {
+                console.log(Object.keys(filesWithConfigs[i]).length );
+                if (Object.keys(filesWithConfigs[i]).length === 11) {
                     if (
-                        'fileName' in files[i] &&
-                        'public_id' in files[i] &&
-                        'secure_url' in files[i]
+                        'file' in filesWithConfigs[i] &&
+                        'fileConfigs' in filesWithConfigs[i] &&
+                        'fileSize' in filesWithConfigs[i] &&
+                        'file_id' in filesWithConfigs[i] &&
+                        'file_ref' in filesWithConfigs[i] &&
+                        'name' in filesWithConfigs[i] &&
+                        'pageCount' in filesWithConfigs[i] &&
+                        'progress' in filesWithConfigs[i] &&
+                        'uploading' in filesWithConfigs[i] &&
+                        'url' in filesWithConfigs[i] &&
+                        'fileType' in filesWithConfigs[i]
                     ) {
+                        if(filesWithConfigs[i].fileType !== "application/pdf")
+                        {
+                            return res.status(400).json({
+                                success: false,
+                                message: "Only PDFs are allowed",
+                            });
+                        }
+
+                        if(filesWithConfigs[i].fileSize > 30*1024*1024)
+                        {   
+                            return res.status(400).json({
+                                success: false,
+                                message: "File size should be less than 30MB",
+                            });
+                        }
+
                     } else {
                         return res.status(400).json({
                             success: false,
@@ -200,7 +89,7 @@ exports.validateOrder = async (req, res) => {
                 } else {
                     return res.status(400).json({
                         success: false,
-                        message: 'Files should have length equal to 3 .',
+                        message: 'Files should have length equal to 11 .',
                     });
                 }
             } else {
@@ -211,18 +100,19 @@ exports.validateOrder = async (req, res) => {
             }
         }
 
-        for (let i = 0; i < fileConfigs.length; i++) {
-            if (typeof fileConfigs[i] === 'object') {
-                if (Object.keys(fileConfigs[i]).length === 6) {
+        for (let i = 0; i < filesWithConfigs.length; i++) {
+
+            const fileConfigs = filesWithConfigs[i].fileConfigs;
+
+            if (typeof fileConfigs === 'object') {
+                if (Object.keys(fileConfigs).length === 4) {
                     if (
-                        'backToBack' in fileConfigs[i] &&
-                        'color' in fileConfigs[i] &&
-                        'copies' in fileConfigs[i] &&
-                        'numberOfPages' in fileConfigs[i] &&
-                        'orientation' in fileConfigs[i] &&
-                        'specialRequest' in fileConfigs[i]
-                    ) {
-                    } else {
+                        'backToBack' in fileConfigs &&
+                        'color' in fileConfigs &&
+                        'copies' in fileConfigs &&
+                        'orientation' in fileConfigs 
+                    ) {} 
+                    else {
                         return res.status(400).json({
                             success: false,
                             message:
@@ -232,7 +122,7 @@ exports.validateOrder = async (req, res) => {
                 } else {
                     return res.status(400).json({
                         success: false,
-                        message: 'Fileconfigs should have length equal to 6',
+                        message: 'Fileconfigs should have length equal to 4',
                     });
                 }
             } else {
@@ -259,320 +149,9 @@ exports.validateOrder = async (req, res) => {
             });
         }
 
-        //Checking the price with original price
-        const priceDetails = await priceModel
-            .findOne({ _id: isVendorValid.vendorAdditionalDetails.priceSchema })
-            .select('-_id -vendor');
-
-        let original_price = 0;
-        let numberofBlackAndWhitePrints_SingleSide = 0;
-        let numberofBlackAndWhitePrints_BackToBack = 0;
-        let numberofColoredPrints_SingleSide = 0;
-        let numberofColoredPrints_backToBack = 0;
-
-        //Counting the pages
-        for (let i = 0; i < fileConfigs.length; i++) {
-            if (fileConfigs[i].color === 'colored') {
-                if (fileConfigs[i].backToBack) {
-                    numberofColoredPrints_backToBack +=
-                        fileConfigs[i].numberOfPages * fileConfigs[i].copies;
-                } else {
-                    numberofColoredPrints_SingleSide +=
-                        fileConfigs[i].numberOfPages * fileConfigs[i].copies;
-                }
-            } else {
-                if (fileConfigs[i].backToBack) {
-                    numberofBlackAndWhitePrints_BackToBack +=
-                        fileConfigs[i].numberOfPages * fileConfigs[i].copies;
-                } else {
-                    numberofBlackAndWhitePrints_SingleSide +=
-                        fileConfigs[i].numberOfPages * fileConfigs[i].copies;
-                }
-            }
-        }
-
-        //Calculating the Price
-
-        //Including price of color Printouts
-        //[]->at index 0 -> storing applicable price , at index 1 -> pricing mode
-        let applicablePriceSchema_BW_SS = [];
-        let applicablePriceSchema_BW_BB = [];
-        let applicablePriceSchema_C_SS = [];
-        let applicablePriceSchema_C_BB = [];
-
-        const priceSchema = priceDetails.priceSchema;
-
-        //Calculating the price of singleSide black and white prints
-
-        if (numberofBlackAndWhitePrints_BackToBack === 1) {
-            numberofBlackAndWhitePrints_BackToBack = 0;
-            numberofBlackAndWhitePrints_SingleSide = 1;
-        }
-
-        if (numberofColoredPrints_backToBack === 1) {
-            numberofColoredPrints_backToBack = 0;
-            numberofColoredPrints_SingleSide = 1;
-        }
-
-        if (numberofBlackAndWhitePrints_SingleSide > 0) {
-            for (let i = 0; i < priceSchema.length; i++) {
-                if (
-                    priceSchema[i].printingMethod === 'singleSide' &&
-                    priceSchema[i].colour === 'blackAndWhite'
-                ) {
-                    if (priceSchema[i].rangeType === 'above') {
-                        if (
-                            numberofBlackAndWhitePrints_SingleSide >
-                            priceSchema[i].aboveValue
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_BW_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofBlackAndWhitePrints_SingleSide *
-                                    applicablePriceSchema_BW_SS[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_BW_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    applicablePriceSchema_BW_SS[0];
-                                break;
-                            }
-                        }
-                    }
-                    if (priceSchema[i].rangeType === 'range') {
-                        if (
-                            priceSchema[i].startingRange <=
-                                numberofBlackAndWhitePrints_SingleSide &&
-                            priceSchema[i].endingRange >=
-                                numberofBlackAndWhitePrints_SingleSide
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_BW_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofBlackAndWhitePrints_SingleSide *
-                                    applicablePriceSchema_BW_SS[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_BW_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    applicablePriceSchema_BW_SS[0];
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        //Calculating the price of bothSide black and white prints
-        if (numberofBlackAndWhitePrints_BackToBack > 0) {
-            for (let i = 0; i < priceSchema.length; i++) {
-                if (
-                    priceSchema[i].printingMethod === 'backToBack' &&
-                    priceSchema[i].colour === 'blackAndWhite'
-                ) {
-                    if (priceSchema[i].rangeType === 'above') {
-                        if (
-                            numberofBlackAndWhitePrints_BackToBack >
-                            priceSchema[i].aboveValue
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_BW_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofBlackAndWhitePrints_BackToBack *
-                                    applicablePriceSchema_BW_BB[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_BW_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    applicablePriceSchema_BW_BB[0];
-                                break;
-                            }
-                        }
-                    }
-
-                    if (priceSchema[i].rangeType === 'range') {
-                        if (
-                            priceSchema[i].startingRange <=
-                                numberofBlackAndWhitePrints_BackToBack &&
-                            priceSchema[i].endingRange >=
-                                numberofBlackAndWhitePrints_BackToBack
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_BW_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofBlackAndWhitePrints_BackToBack *
-                                    applicablePriceSchema_BW_BB[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_BW_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    applicablePriceSchema_BW_BB[0];
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        //Calculating the price of single Side Color print
-        if (numberofColoredPrints_SingleSide > 0) {
-            for (let i = 0; i < priceSchema.length; i++) {
-                if (
-                    priceSchema[i].printingMethod === 'singleSide' &&
-                    priceSchema[i].colour === 'colour'
-                ) {
-                    if (priceSchema[i].rangeType === 'above') {
-                        if (
-                            numberofColoredPrints_SingleSide >
-                            priceSchema[i].aboveValue
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_C_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofColoredPrints_SingleSide *
-                                    applicablePriceSchema_C_SS[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_C_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price += applicablePriceSchema_C_SS[0];
-                                break;
-                            }
-                        }
-                    }
-
-                    if (priceSchema[i].rangeType === 'range') {
-                        if (
-                            priceSchema[i].startingRange <=
-                                numberofColoredPrints_SingleSide &&
-                            priceSchema[i].endingRange >=
-                                numberofColoredPrints_SingleSide
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_C_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofColoredPrints_SingleSide *
-                                    applicablePriceSchema_C_SS[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_C_SS = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price += applicablePriceSchema_C_SS[0];
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (numberofColoredPrints_backToBack > 0) {
-            for (let i = 0; i < priceSchema.length; i++) {
-                if (
-                    priceSchema[i].printingMethod === 'backToBack' &&
-                    priceSchema[i].colour === 'colour'
-                ) {
-                    if (priceSchema[i].rangeType === 'above') {
-                        if (
-                            numberofColoredPrints_backToBack >
-                            priceSchema[i].aboveValue
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_C_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofColoredPrints_backToBack *
-                                    applicablePriceSchema_C_BB[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_C_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price += applicablePriceSchema_C_BB[0];
-                                break;
-                            }
-                        }
-                    }
-
-                    if (priceSchema[i].rangeType === 'range') {
-                        if (
-                            priceSchema[i].startingRange <=
-                                numberofColoredPrints_backToBack &&
-                            priceSchema[i].endingRange >=
-                                numberofColoredPrints_backToBack
-                        ) {
-                            if (priceSchema[i].pricingMethod === 'perPrint') {
-                                applicablePriceSchema_C_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price +=
-                                    numberofColoredPrints_backToBacknumberofColoredPrints_SingleSide *
-                                    applicablePriceSchema_C_BB[0];
-                                break;
-                            } else {
-                                applicablePriceSchema_C_BB = [
-                                    priceSchema[i].price,
-                                    priceSchema[i].pricingMethod,
-                                ];
-                                original_price += applicablePriceSchema_C_BB[0];
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (price !== original_price) {
-            return res.status(400).json({
-                success: false,
-                message: 'Price is altered.',
-            });
-        }
-
         // checking whether user is valid or not
         const isUserValid = await usersCollection.findOne({
-            role: 'user',
+            role: 'customer',
             _id: userID,
         });
 
@@ -591,17 +170,508 @@ exports.validateOrder = async (req, res) => {
             });
         }
 
+        //Checking the price with original price
+        // const priceDetails = await priceModel
+        //     .findOne({ _id: isVendorValid.vendorAdditionalDetails.priceSchema })
+        //     .select('-_id -vendor');
+
+        let price = 0;
+        let number_of_ss_prints_bw = 0;
+        let number_of_bb_prints_bw = 0;
+        let number_of_ss_prints_c = 0;
+        let number_of_bb_prints_c = 0;
+
+
+
+        //Counting the pages
+        for(let i=0 ; i<filesWithConfigs.length ; i++)
+        {
+            const fileConfigs = filesWithConfigs[i].fileConfigs;
+            if(fileConfigs.color === "colored")
+            {
+                if(filesWithConfigs[i].backToBack)
+                {
+                    number_of_bb_prints_c+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                }
+                else
+                {
+                    number_of_ss_prints_c+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                } 
+            }
+            else
+            {
+                if(filesWithConfigs[i].backToBack)
+                {
+                    number_of_bb_prints_bw+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                }
+                else
+                {
+                    number_of_ss_prints_bw+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                } 
+            }
+        }
+
+
+        let blackpages = number_of_ss_prints_bw + (Math.floor(number_of_bb_prints_bw/2)) +  (number_of_bb_prints_bw%2);
+
+        let total_cost = 0;
+        let total_bw_cost = 0;
+        let total_c_cost = (number_of_ss_prints_c + number_of_bb_prints_c)*15;
+
+        // let applicablePriceSchema_BW_SS =[];
+        // let applicablePriceSchema_BW_BB =[];
+        // let applicablePriceSchema_C_SS =[];
+        // let applicablePriceSchema_C_BB =[];
+
+        let applicablePriceSchema_BW = [];
+        let applicablePriceSchema_C = [15, "perPrint"];
+
+        if(blackpages==1)
+        {
+            total_bw_cost+=5;
+            applicablePriceSchema_BW = [ 5  , "perPrint"];
+        }
+        else if(2<=blackpages && blackpages<=4) 
+        {
+            total_bw_cost+=10;
+            applicablePriceSchema_BW = [10 , "combined"]
+        }
+
+        else if(blackpages>4)
+        {
+
+            total_bw_cost+=blackpages*2;
+            applicablePriceSchema_BW = [2 , "perPrint"]
+        }
+
+        total_cost = total_bw_cost + total_c_cost;
+
+        price = total_cost;
+
+
+
+        const invoice={
+            price :{
+                price , 
+                total_bw_cost,
+                total_c_cost
+            },
+
+            pages : 
+            {
+                number_of_bb_prints_bw,
+                number_of_ss_prints_bw,
+                number_of_bb_prints_c,
+                number_of_ss_prints_c,
+            },
+
+            priceSchema :
+            {
+                applicablePriceSchema_BW,
+                applicablePriceSchema_C,
+            },
+
+            vendor : vendorID
+        }
+
+
         return res.status(200).json({
-            success: true,
-            message: 'Order Validated Successfully',
-            userId: isUserValid?.userId,
-        });
-    } catch (e) {
-        console.log('Error occured while validating the order : ', error);
+            success:true,
+            message:"Invoice is fetched successfully",
+            invoice
+        })
+
+    } catch (error) {
+        console.log('Error occured while validating and creating the invoice for  the order : ', error);
         return res.status(500).json({
             success: false,
             message: 'Internal Server Problem',
-            error: e.message,
+            error: error.message,
         });
     }
 };
+
+exports.getAllVendorPriceDetails = async(req,res)=>
+{
+    try
+    {
+
+        const {vendorId } = req.body;
+        let {filesWithConfigs} = req.body;
+
+        if(!vendorId)
+        {
+            return res.status(400).json({
+                success  :false,
+                message : "Please Specify A shop"
+            })
+        }
+
+        if(!(filesWithConfigs.length>0))
+        {
+            return res.status(400).json({
+                success  :false,
+                message : "Please Specify File Configurations"
+            })
+
+        }
+        //validate the vendorId
+        const isVendorValid =  await usersCollection.findOne({userId : vendorId})
+                                         .select("-_id vendorAdditionalDetails")
+                                         .populate({
+                                            path:"vendorAdditionalDetails",
+                                            select : "-_id priceSchema"
+                                         });
+
+        if(!isVendorValid)
+        {
+            return res.status(400).json({
+                success  :false,
+                message : "Such Vendor doesn't Exists"
+            })
+        }
+
+        //extract the price details
+        // const priceDetails = await priceModel.findOne({_id:isVendorValid.vendorAdditionalDetails.priceSchema})
+        //                                  .select("-_id");
+        
+
+        let price = 0;
+        let number_of_ss_prints_bw = 0;
+        let number_of_bb_prints_bw = 0;
+        let number_of_ss_prints_c = 0;
+        let number_of_bb_prints_c = 0;
+
+
+
+        //Counting the pages
+        for(let i=0 ; i<filesWithConfigs.length ; i++)
+        {
+            if(filesWithConfigs[i].fileConfigs.color === "colored")
+            {
+                if(filesWithConfigs[i].backToBack)
+                {
+                    number_of_bb_prints_c+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                }
+                else
+                {
+                    number_of_ss_prints_c+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                } 
+            }
+            else
+            {
+                if(filesWithConfigs[i].backToBack)
+                {
+                    number_of_bb_prints_bw+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                }
+                else
+                {
+                    number_of_ss_prints_bw+=((filesWithConfigs[i].pageCount)*filesWithConfigs[i].fileConfigs.copies);
+                } 
+            }
+        }
+
+
+        let blackpages = number_of_ss_prints_bw + (Math.floor(number_of_bb_prints_bw/2)) +  (number_of_bb_prints_bw%2);
+
+        let total_cost = 0;
+        let total_bw_cost = 0;
+        let total_c_cost = (number_of_ss_prints_c + number_of_bb_prints_c)*13;
+
+        // let applicablePriceSchema_BW_SS =[];
+        // let applicablePriceSchema_BW_BB =[];
+        // let applicablePriceSchema_C_SS =[];
+        // let applicablePriceSchema_C_BB =[];
+
+        let applicablePriceSchema_BW = [];
+        let applicablePriceSchema_C = [13, "perPrint"];
+
+        if(blackpages==1)
+        {
+            total_bw_cost+=5;
+            applicablePriceSchema_BW = [ 5  , "perPrint"];
+        }
+        else if(2<=blackpages && blackpages<=4) 
+        {
+            total_bw_cost+=10;
+            applicablePriceSchema_BW = [10 , "combined"]
+        }
+
+        else if(blackpages>4)
+        {
+
+            total_bw_cost+=blackpages*2;
+            applicablePriceSchema_BW = [2 , "perPrint"]
+        }
+
+        total_cost = total_bw_cost + total_c_cost;
+
+        price = total_cost;
+
+        //Calculating the Price
+
+        //Including price of color Printouts
+        //[]->at index 0 -> storing applicable price , at index 1 -> pricing mode
+        
+
+        // const priceSchema = priceDetails.priceSchema;
+
+
+
+        //Calculating the price of singleSide black and white prints
+
+        // if(numberofBlackAndWhitePrints_BackToBack === 1) 
+        // {
+        //     numberofBlackAndWhitePrints_BackToBack=0;
+        //     numberofBlackAndWhitePrints_SingleSide=1;
+        // }
+
+        // if(numberofColoredPrints_backToBack===1)
+        // {
+        //     numberofColoredPrints_backToBack=0;
+        //     numberofColoredPrints_SingleSide=1;
+        // }
+
+        // if(numberofBlackAndWhitePrints_SingleSide>0)
+        // {
+        //     for(let i=0 ; i<priceSchema.length;i++)
+        //         {
+        //             if(priceSchema[i].printingMethod === "singleSide" && priceSchema[i].colour==="blackAndWhite")
+        //             {
+        //                 if(priceSchema[i].rangeType==="above")
+        //                 {
+        //                     if(numberofBlackAndWhitePrints_SingleSide>priceSchema[i].aboveValue)
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_BW_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofBlackAndWhitePrints_SingleSide*applicablePriceSchema_BW_SS[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_BW_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_BW_SS[0];
+        //                             break;
+        //                         }
+                                
+        //                     }
+        //                 }
+        //                 if(priceSchema[i].rangeType==="range")
+        //                 {
+        //                     if((priceSchema[i].startingRange<= numberofBlackAndWhitePrints_SingleSide) && (priceSchema[i].endingRange>= numberofBlackAndWhitePrints_SingleSide))
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_BW_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofBlackAndWhitePrints_SingleSide*applicablePriceSchema_BW_SS[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_BW_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_BW_SS[0];
+        //                             break;
+        //                         }
+        //                     }
+        //                 }
+                        
+        //             }
+        //         }
+        // }
+        
+        // //Calculating the price of bothSide black and white prints
+        // if(numberofBlackAndWhitePrints_BackToBack>0)
+        // {
+        //     for(let i=0 ; i<priceSchema.length;i++)
+        //         {
+        //             if(priceSchema[i].printingMethod === "backToBack" && priceSchema[i].colour==="blackAndWhite")
+        //             {
+        //                 if(priceSchema[i].rangeType==="above")
+        //                 {
+        //                     if(numberofBlackAndWhitePrints_BackToBack>priceSchema[i].aboveValue)
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_BW_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofBlackAndWhitePrints_BackToBack*applicablePriceSchema_BW_BB[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_BW_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_BW_BB[0];
+        //                             break;
+        //                         }
+                                
+        //                     }
+        //                 }
+
+        //                 if(priceSchema[i].rangeType==="range")
+        //                 {
+        //                     if((priceSchema[i].startingRange<= numberofBlackAndWhitePrints_BackToBack) && (priceSchema[i].endingRange>=numberofBlackAndWhitePrints_BackToBack))
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_BW_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofBlackAndWhitePrints_BackToBack*applicablePriceSchema_BW_BB[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_BW_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_BW_BB[0];
+        //                             break;
+        //                         }
+        //                     }
+        //                 }
+                        
+        //             }
+        //         }
+        // }
+
+        // //Calculating the price of single Side Color print
+        // if(numberofColoredPrints_SingleSide>0)
+        // {
+        //     for(let i=0 ; i<priceSchema.length;i++)
+        //         {
+        //             if(priceSchema[i].printingMethod === "singleSide" && priceSchema[i].colour==="colour")
+        //             {
+        //                 if(priceSchema[i].rangeType==="above")
+        //                 {
+        //                     if(numberofColoredPrints_SingleSide>priceSchema[i].aboveValue)
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_C_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofColoredPrints_SingleSide*applicablePriceSchema_C_SS[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_C_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_C_SS[0];
+        //                             break;
+        //                         }
+                                
+        //                     }
+        //                 }
+
+        //                 if(priceSchema[i].rangeType==="range")
+        //                 {
+        //                     if((priceSchema[i].startingRange<= numberofColoredPrints_SingleSide) && (priceSchema[i].endingRange>= numberofColoredPrints_SingleSide))
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_C_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofColoredPrints_SingleSide*applicablePriceSchema_C_SS[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_C_SS = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_C_SS[0];
+        //                             break;
+        //                         }
+        //                     }
+        //                 }
+                        
+        //             }
+        //         }
+        // }
+
+        // if(numberofColoredPrints_backToBack>0)
+        // {
+        //     for(let i=0 ; i<priceSchema.length;i++)
+        //         {
+        //             if(priceSchema[i].printingMethod === "backToBack" && priceSchema[i].colour==="colour")
+        //             {
+        //                 if(priceSchema[i].rangeType==="above")
+        //                 {
+        //                     if(numberofColoredPrints_backToBack>priceSchema[i].aboveValue)
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_C_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofColoredPrints_backToBack*applicablePriceSchema_C_BB[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_C_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_C_BB[0];
+        //                             break;
+        //                         }
+                                
+        //                     }
+        //                 }
+
+        //                 if(priceSchema[i].rangeType==="range")
+        //                 {
+        //                     if((priceSchema[i].startingRange<= numberofColoredPrints_backToBack) && (priceSchema[i].endingRange>= numberofColoredPrints_backToBack))
+        //                     {
+        //                         if(priceSchema[i].pricingMethod === "perPrint")
+        //                         {
+        //                             applicablePriceSchema_C_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=numberofColoredPrints_backToBacknumberofColoredPrints_SingleSide*applicablePriceSchema_C_BB[0];
+        //                             break;
+        //                         }
+        //                         else
+        //                         {
+        //                             applicablePriceSchema_C_BB = [priceSchema[i].price , priceSchema[i].pricingMethod];
+        //                             price+=applicablePriceSchema_C_BB[0];
+        //                             break;
+        //                         }
+        //                     }
+        //                 }
+                        
+        //             }
+        //         }
+        // }
+
+
+
+        const invoice={
+            price :{
+                price , 
+                total_bw_cost,
+                total_c_cost
+            },
+
+            pages : 
+            {
+                number_of_bb_prints_bw,
+                number_of_ss_prints_bw,
+                number_of_bb_prints_c,
+                number_of_ss_prints_c,
+            },
+
+            priceSchema :
+            {
+                applicablePriceSchema_BW,
+                applicablePriceSchema_C,
+            },
+
+            vendor : vendorId
+        }
+
+
+        return res.status(200).json({
+            success:true,
+            message:"Invoice is fetched successfully",
+            invoice
+        })
+
+    }catch(e)
+    {
+        console.log("Error occured while calculating the price of a order : " , e);
+        return res.status(500).json({
+            success  :false,
+            message : e.message
+        })
+    }
+}
+
+
+
+

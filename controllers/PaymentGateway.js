@@ -13,7 +13,8 @@ exports.createPGOrder = async (req, res) => {
     const customerId = req.tokenPayload.id;
 
     try {
-        const { vendorId, price } = req.body;
+        const { vendorId } = req.body;
+        const price = req.invoice.price.price
 
         if (!vendorId) {
             return res.status(400).json({
@@ -88,7 +89,7 @@ exports.createPGOrder = async (req, res) => {
                 return_url: "http://localhost:3000/check-order",
                 // notify_url: "https://localhost:3000"
             },
-            order_amount: 1,
+            order_amount: price,
             order_currency: 'INR',
             order_id: uuidv4(),
             customer_details: {

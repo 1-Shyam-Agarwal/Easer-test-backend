@@ -4,6 +4,26 @@ const unreceivedOrders = require('./OrderTypes/UnreceivedOrders.js');
 const vendor = require('./VendorExtraDetails.js');
 const mails = require('../models/Mails.js');
 
+const sessionSchema = new mongoose.Schema({
+  token: {
+    type : String,
+    required : true
+  }, 
+
+  device: {
+    type : String,
+    required : true
+  },        
+
+  loginAt: { 
+    type: Date, 
+    required : true,
+    default: Date.now 
+  },
+
+  fcmToken: String       
+});
+
 const userSchema = new mongoose.Schema({
     firstName: {
         type: String,
@@ -44,7 +64,6 @@ const userSchema = new mongoose.Schema({
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'cancelledOrders',
-            required: true,
         },
     ],
 
@@ -52,7 +71,6 @@ const userSchema = new mongoose.Schema({
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'unreceivedOrders',
-            required: true,
         },
     ],
 
@@ -60,7 +78,6 @@ const userSchema = new mongoose.Schema({
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'trashedOrders',
-            required: true,
         },
     ],
 
@@ -68,14 +85,8 @@ const userSchema = new mongoose.Schema({
         {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'orderHistory',
-            required: true,
         },
     ],
-
-    token: {
-        type: String,
-        default: null,
-    },
 
     resetPasswordExpires: {
         type: Date,
@@ -109,6 +120,8 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+
+    sessions: [sessionSchema]   // multiple sessions
 });
 
 module.exports = mongoose.model('usersCollection', userSchema);

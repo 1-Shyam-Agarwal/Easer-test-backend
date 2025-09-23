@@ -6,6 +6,7 @@ const {
     verifyPayment,
 } = require('../controllers/PaymentGateway.js');
 
+const {validateOrderAndPriceGenerationMiddleware} = require("../middlewares/ValidateOrderAndVerifyPrice.js");
 const {
     auth,
     isCustomer,
@@ -13,7 +14,7 @@ const {
     isAdmin,
 } = require('../middlewares/Auth.js');
 
-router.post('/create-pg-order', auth, isCustomer, createPGOrder);
+router.post('/create-pg-order', auth, isCustomer, validateOrderAndPriceGenerationMiddleware , createPGOrder);
 router.post('/verify-payment', auth, isCustomer, verifyPayment);
 
 module.exports = router;

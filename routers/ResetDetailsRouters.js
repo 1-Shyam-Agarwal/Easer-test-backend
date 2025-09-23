@@ -12,4 +12,10 @@ router.post('/validate-and-update-name', auth, validateAndUpdateName);
 router.post('/validate-and-update-password', auth, validateAndUpdatePassword);
 router.post('/update-mobile-number', auth, changeMobileNumber);
 
+const {
+    changeShopStatus
+} = require("../controllers/ResetDetailsControllers/ResetVendorSpecificDetails.js");
+
+router.post("/change-shop-status" , auth , isVendor , changeShopStatus);
+
 module.exports = router;

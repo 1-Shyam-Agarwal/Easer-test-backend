@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const {auth} = require("../middlewares/Auth.js")
 
 //<---------------------------------------------------OTP Routers--------------------------------------------->
 
@@ -138,3 +139,11 @@ router.post('/reset-password-token', resetPasswordToken);
 router.post('/reset-password', resetPassword);
 
 module.exports = router;
+
+
+//<---------------------------------------------Logout routers------------------------------------>
+const {
+    logoutController
+} = require("../controllers/AuthController/LoginControllers.js");
+
+router.put("/logout" , auth , logoutController);

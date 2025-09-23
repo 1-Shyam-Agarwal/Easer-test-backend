@@ -53,13 +53,13 @@ exports.validateAndUpdateName = async (req, res) => {
         }
 
         // Validate that firstName contains only alphabetic characters
-        const regex = /^[A-Za-z]+$/;
-        if (!regex.test(firstName)) {
-            return res.status(400).json({
-                success: false,
-                message: 'First name can only contain alphabetic characters.',
-            });
-        }
+        // const regex = /^[A-Za-z]+$/;
+        // if (!regex.test(firstName)) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: 'First name can only contain alphabetic characters.',
+        //     });
+        // }
 
         // Validate length (maximum 20 characters)
         if (lastName.length > 50) {
@@ -71,12 +71,12 @@ exports.validateAndUpdateName = async (req, res) => {
         const Lastregex = /^[A-Za-z]*$/;
 
         // Validate that lastName contains only alphabetic characters
-        if (!Lastregex.test(lastName)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Last Name can only contain alphabetic characters.',
-            });
-        }
+        // if (!Lastregex.test(lastName)) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: 'Last Name can only contain alphabetic characters.',
+        //     });
+        // }
 
         //update the value and update profileImage
         const response = await userInfo.findByIdAndUpdate(

@@ -177,7 +177,7 @@ async function googlePreLoginCheckController(req, res) {
 //POST REQUEST
 async function checkLoginPasswordController(req, res) {
     // Get email and password from request body
-    const { email, password } = req.body;
+    const { email, password , device } = req.body;
 
     // Check if email is missing or not
     if (!email) {
@@ -210,6 +210,16 @@ async function checkLoginPasswordController(req, res) {
             success: false,
             message:
                 'Your entered password may be containing leading and trailing spaces.',
+        });
+    }
+
+    if(!device)
+    {
+        console.log(`Device missing at login for email: ${email}`);
+        return res.status(400).json({
+            success: false,
+            message:
+                'Device unknown',
         });
     }
 
@@ -259,6 +269,38 @@ async function checkLoginPasswordController(req, res) {
             expiresIn: '1y',
         });
 
+        try {
+
+            // Ensure sessions field exists
+            if (!user.sessions) {
+                user.sessions = [];
+            }
+
+            // If user already has 3 sessions, remove the earliest (based on loginAt)
+            // if (user.sessions.length >= 3) {
+            //     // Sort sessions by loginAt ascending (earliest first)
+            //     user.sessions.sort((a, b) => new Date(a.loginAt) - new Date(b.loginAt));
+            //     user.sessions.shift(); // remove the earliest
+            // }
+
+            // Push the new session
+            user.sessions.push({
+                token: token,
+                device: device,
+                loginAt: new Date()
+            });
+
+            await user.save();
+
+
+        } catch (e) {
+            console.log("Error while creating session: ", e);
+            return res.status(500).json({
+                success: false,
+                message: "Internal Server Error."
+            });
+        }
+
         return res.status(200).json({
             success: true,
             easerSecurityTicket: token,
@@ -272,8 +314,43 @@ async function checkLoginPasswordController(req, res) {
     }
 }
 
+async function logoutController(req,res)
+{
+    const authHeader = req.headers['authorization'];
+
+    const token = authHeader.replace('Bearer ', '');
+
+    const {id} = req.tokenPayload;
+
+    try
+    {
+        const response = await usersCollection.findOneAndUpdate(
+            { _id: id },
+            {
+                $pull: { sessions: { token: token } }  // remove the session with this token
+            },
+            { new: true }
+        );
+    }
+    catch(e)
+    {
+        console.log("Error occured while logging out of the session : " , e);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server Error"
+        })
+    }
+    
+
+    return res.status(200).json({
+        success : true,
+        message : "Logout successfully"
+    })
+}
+
 module.exports = {
     preCustomLoginCheckController,
     googlePreLoginCheckController,
     checkLoginPasswordController,
+    logoutController
 };
