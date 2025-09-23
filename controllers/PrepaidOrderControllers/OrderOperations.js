@@ -2,6 +2,9 @@ const { request } = require("express");
 const usersCollection = require("../../models/Users");
 const OngoingOrders = require("../../models/OrderTypes/OngoingOrders");
 const {sendNotification} = require("../Notification");
+const usedOrderOTP = require("../../models/TemporaryStorage/usedOTP.js");
+const mongoose = require("mongoose");
+
 
 const { Mutex } = require('async-mutex');
 
@@ -13,6 +16,8 @@ exports.completeOrder = async(req,res)=>
 {
     //Only access by vendor 
     const {orderId} = req.body;
+
+    const{id} = req.tokenPayload;
 
     if(!orderId)
     {
@@ -26,7 +31,7 @@ exports.completeOrder = async(req,res)=>
     try
     {
 
-        const ongoingOrder = await OngoingOrders.findOne({ orderId })
+        const ongoingOrder = await OngoingOrders.findOne({ orderId , vendor:id})
         .populate({
             path: "user",         
         });
@@ -45,6 +50,14 @@ exports.completeOrder = async(req,res)=>
             return res.status(200).json({
                 success : true,
                 message : "This order is already completed."
+            })
+        }
+
+        if(ongoingOrder.orderStatus !== "waiting")
+        {
+            return res.status(500).json({
+                success : true,
+                message : "This order is not in the waiting state."
             })
         }
 
@@ -477,7 +490,7 @@ exports.createOrderHistory = async(req , res)=>
     // only customer can access this 
     // 
     const id = req.tokenPayload.id;
-    const role = req.role;
+    const { role } = req.tokenPayload;
 
     if(!id)
     {
@@ -506,12 +519,15 @@ exports.createOrderHistory = async(req , res)=>
     }
 
     const releaseB = await mutexB.acquire();
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try
     {
-        const ongoingOrder = await OngoingOrders.findOne({ orderId ,user:id });
+        const ongoingOrder = await OngoingOrders.findOne({ orderId, user: id }).session(session);
 
         if(!ongoingOrder)
         {
+             await session.abortTransaction();
             return res.status(400).json({
                 success : false,
                 message : "Such order doesn't exists."
@@ -520,6 +536,7 @@ exports.createOrderHistory = async(req , res)=>
 
         if(ongoingOrder.orderStatus === "waiting")
         {
+             await session.abortTransaction();
             return res.status(400).json({
                 success : false,
                 message : "You can only receive order once it is completed."
@@ -528,6 +545,7 @@ exports.createOrderHistory = async(req , res)=>
 
         if(ongoingOrder.orderStatus === "received")
         {
+            await session.abortTransaction();
             return res.status(400).json({
                 success : false,
                 message : "You have already received this order."
@@ -537,8 +555,16 @@ exports.createOrderHistory = async(req , res)=>
         
         ongoingOrder.orderStatus = "received";
         ongoingOrder.recievedBy = id;
-        ongoingOrder.timeOfRecieving = new Date();
-        ongoingOrder.save();        
+        ongoingOrder.timeOfRecieving = new Date(); 
+        await ongoingOrder.save({ session });      
+
+        const removedOTP = await usedOrderOTP.updateOne(
+            { _id: "68d26ee389879fe2de1a1ab9" },
+            { $pull: { orderOtps: ongoingOrder.otp } }
+            ,{session }
+        );
+
+        await session.commitTransaction();
 
         return res.status(200).json({
             success : true,
@@ -547,6 +573,8 @@ exports.createOrderHistory = async(req , res)=>
 
     }catch(e)
     {
+        await session.abortTransaction();
+
         console.log("Error occured while updating the status of the ongoing order to cancelled order : " , e);
 
         return res.status(500).json({
@@ -556,6 +584,7 @@ exports.createOrderHistory = async(req , res)=>
     }  
     finally
     {
+        session.endSession();
         releaseB();
     }    
 }

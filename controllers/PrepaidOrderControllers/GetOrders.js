@@ -77,7 +77,8 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
                         path: 'vendorAdditionalDetails',
                         select: '-_id shopName shopLandMark',
                     },
-                });
+                })
+                .sort({ otp : 1 });
         }
 
         //then return
@@ -103,127 +104,74 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
 
 exports.getAllSpecificUnreceivedOrders = async (req, res) => {
     try {
-        //Extract Id , role from the body
+        //Extract the UserId from the req body
         const { id, role } = req.tokenPayload;
 
-        //Check whether the Id is empty or not
-        if (!id) {
+        if(!id)
+        {
             return res.status(400).json({
                 success: false,
-                message: 'Please Specify your Id',
-            });
+                message: 'Id is missing.',
+            })
         }
 
-        //Check whether the role is empty or not
+        //check whether the usrId is empty or not
         if (!role) {
             return res.status(400).json({
                 success: false,
-                message: 'Please Specify your role',
+                message: 'Role is missing.',
             });
         }
 
-        //check whether the role is valid or not
-        if (!['user', 'admin', 'vendor'].includes(role)) {
+        if (role!=='vendor') {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid role entered',
+                message: 'Invalid Role',
             });
         }
 
-        //Check whether the Id is valid or not
-        let response = await users.findOne({ _id: id });
+        // check whether is user it exists or not
+        const isUseridValid = await usersCollection.findOne({ _id: id , role:'vendor'});
 
-        if (!response) {
+        if (!isUseridValid) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid Id entered',
+                message: `Such ${role} doesn't exists.`,
             });
         }
 
-        // if everyhting is fine i will fetch the detail from the user card and populate something
-        // if(role === user) populate(unreceide orders) , select unreceive orders then
-        //from un recieved orders populate documents , vendor (select shopName , shopLandMark) populate(vendorAdditionaldetails select fineSchema popluate kardo)
-        if (role === 'user') {
-            response = await users
-                .findOne({ _id: id })
-                .select('-_id unreceivedOrders')
-                .populate({
-                    path: 'unreceivedOrders',
-                    select: '-_id -user',
-                    populate: [
-                        {
-                            path: 'documents',
-                            select: '-_id -documents.public_id',
-                        },
+        //Then findAll from the onGoingOrders and sort in the ascedning order of the time
 
-                        {
-                            path: 'vendor',
-                            select: '-_id vendorAdditionalDetails',
-                            populate: [
-                                {
-                                    path: 'vendorAdditionalDetails',
-                                    select: '-_id shopName shopLandMark fineSchema',
-                                    populate: [
-                                        {
-                                            path: 'fineSchema',
-                                            select: '-_id',
-                                        },
-                                    ],
-                                },
-                            ],
-                        },
-                    ],
-                });
-        }
+    let response = await onGoingOrders
+        .find({ vendor: id ,orderStatus:'completed'})
+        .select('-_id')
+        .populate({
+            path: 'user',
+            select: '-_id firstName lastName email mobileNumber userId',
+        })
+        .populate({
+            path: 'vendor',
+            select: '-_id vendorAdditionalDetails userId',
+            populate: {
+                path: 'vendorAdditionalDetails',
+                select: '-_id shopName shopLandMark',
+            },
+        })
+        .sort({ orderedAt : 1 });
 
-        //if(role === vendor) populate(unreceived Orders) select unreceived Orders, populate user and select firstName ,lastName and email , populate Documents , populate vendor opulate(vendorAdditionaldetails select fineSchema popluate kardo
-        if (role === 'vendor') {
-            response = await users
-                .findOne({ _id: id })
-                .select('-_id unreceivedOrders')
-                .populate({
-                    path: 'unreceivedOrders',
-                    select: '-_id',
-                    populate: [
-                        {
-                            path: 'documents',
-                            select: '-_id',
-                        },
-                        {
-                            path: 'user',
-                            select: '-_id firstName lastName email mobileNumber userId',
-                        },
-                        {
-                            path: 'vendor',
-                            select: '-_id vendorAdditionalDetails',
-                            populate: [
-                                {
-                                    path: 'vendorAdditionalDetails',
-                                    select: '-_id fineSchema',
-                                    populate: [
-                                        {
-                                            path: 'fineSchema',
-                                            select: '-_id',
-                                        },
-                                    ],
-                                },
-                            ],
-                        },
-                    ],
-                });
-        }
-
-        //retunr the response
+        //then return
         return res.status(200).json({
             success: true,
-            message: 'unrecieved Orders fetched successfully',
+            message: 'Successfully fetched the onGoingOrders',
             data: response,
         });
     } catch (error) {
+
         console.log(
-            'Error occured while fetching unreceived orders of sepcific user : ',
+            'Error occured while fetching unreceived orders of sepcific vendor : ',
             error
         );
+
         return res.status(500).json({
             success: false,
             message: 'Internal Server Problem',
@@ -275,19 +223,22 @@ exports.getAllSpecificOrderHistory = async (req, res) => {
 
         let response = '';
         if (role === 'vendor') {
-            response = await users
-                .findById(id)
+            response = await onGoingOrders
+                .find({vendor : id , orderStatus:"received"})
+                .select('-_id')
                 .populate({
-                    path: 'orderHistory',
-                    populate: [
-                        {
-                            path: 'user',
-                            select: '-_id firstName lastName email mobileNumber',
-                        },
-                    ],
-                    select: '-_id -vendor',
+                    path: 'vendor',
+                    select: '-_id vendorAdditionalDetails userId',
+                    populate: {
+                        path: 'vendorAdditionalDetails',
+                        select: '-_id shopName shopLandMark',
+                    },
                 })
-                .select('-_id orderHistory');
+                .populate({
+                    path: 'user',
+                    select: '-_id firstName lastName email mobileNumber',
+                })
+                .sort({ orderedAt: -1 });
         }
 
         if (role === 'customer') {
@@ -435,3 +386,63 @@ exports.getSpecificOnlineOrderDetails = async (req, res) => {
         data: orderDetails,
     });
 };
+
+
+exports.getOngoingOrdersCount = async(req,res)=>
+{
+    const{id , role} = req.tokenPayload;
+
+    if(!id)
+    {
+        return res.status(400).json({
+            success: false,
+            message: 'Id is missing.',
+        })
+    }
+
+    //check whether the usrId is empty or not
+    if (!role) {
+        return res.status(400).json({
+            success: false,
+            message: 'Role is missing.',
+        });
+    }
+
+    if (role!=='vendor') {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid Role',
+        });
+    }
+
+    // check whether is user it exists or not
+    const isUseridValid = await usersCollection.findOne({ _id: id , role:"vendor"});
+
+    if (!isUseridValid) {
+        return res.status(400).json({
+            success: false,
+            message: `Such user doesn't exists.`,
+        });
+    }
+
+    try
+    {
+        const count = await onGoingOrders.countDocuments({ 
+            vendor: id, 
+            orderStatus: "waiting" 
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "ongoing order count fetched successfully.",
+            count
+        });
+    }catch(e)
+    {
+        console.log("Error occured while counting the ongoing orders : " , e);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server problem.",
+        });
+    }
+}

@@ -3,6 +3,7 @@ const onGoingOrders = require('../../models/OrderTypes/OngoingOrders.js');
 const usersCollection = require('../../models/Users.js');
 const orderSummary = require("../../models/orderSummary.js");
 const {Mutex}  = require('async-mutex');
+const usedOrderOTP = require("../../models/TemporaryStorage/usedOTP.js");
 
 const mutex = new Mutex();
 
@@ -194,17 +195,6 @@ exports.createOrder = async (req, res) => {
             }); 
         }
 
-        //creating UUID
-        const orderID = uuidv4();
-
-        if (!orderID) {
-            return res.status(500).json({
-                success: false,
-                message:
-                    'Unable to generate OrderId due to some Technical Issue',
-            });
-        }
-
         // checking whether vendor is valid or not
         const [isVendorValid, isUserValid] = await Promise.all([
         usersCollection
@@ -246,12 +236,13 @@ exports.createOrder = async (req, res) => {
 
         const release = await mutex.acquire(); // acquire lock
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // store only date
-        let summaryResponse
+        
 
         try
         {
+            const today = new Date();
+        today.setHours(0, 0, 0, 0); // store only date
+        let summaryResponse
              summaryResponse = await orderSummary.findOneAndUpdate(
             { date: today, user: isVendorValid._id }, // match by date + user
             {
@@ -260,86 +251,99 @@ exports.createOrder = async (req, res) => {
             },
             { new: true, upsert: true }
             );
+        
+
+        let OTP;
+            // Always fetch the singleton document
+            const usedOTPResponse = await usedOrderOTP.getSingleton();
+
+            
+            do {
+                let starting = 1000 + 10 * (
+                (summaryResponse.onGoingOrders > 0 ? summaryResponse.onGoingOrders - 1 : 0) +
+                summaryResponse.UnreceivedOrders +
+                summaryResponse.cancelledOrders +
+                summaryResponse.orderHistory
+                );
+
+                let modification = Math.floor(Math.random() * 10); // random 0-9
+                OTP = starting + modification;
+
+                // keep looping until we find an unused OTP
+            } while (usedOTPResponse.orderOtps.includes(String(OTP)));
+
+            
+            // add OTP to array
+            usedOTPResponse.orderOtps.push(String(OTP));
+            await usedOTPResponse.save();
+
+
+
+
+            const ongoingOrderResponse = await onGoingOrders.find({vendor : isVendorValid._id , orderStatus :"waiting"})
+                                                        .populate("user");
+
+            let totalTime = 0;
+            let pageCount = 0;
+            
+            const currentTime = new Date();
+            
+            let len = ongoingOrderResponse.length;
+
+            ongoingOrderResponse.forEach(order => {
+
+                let n = order.documents.length;
+
+                for(let i=0 ; i<n ; i++)
+                {
+                    pageCount +=order.documents[i].pageCount;
+                    console.log("pageCount : " , pageCount);
+                }
+                
+            })
+
+            
+
+            totalTime = pageCount * 1.25; //in sec
+            console.log("totalTime insec: " , totalTime);
+            totalTime = Math.ceil(totalTime / 60); //in mins
+            totalTime = Math.ceil(totalTime + (len+1)*0.80 + 1.25); //additional time of 10 mins
+
+
+
+            // then creating the entry in the onGoing DB
+            const onGoingDBResponse = await onGoingOrders.create({
+                user: isUserValid._id,
+                vendor: isVendorValid._id,
+                documents: filesWithConfigs,
+                price,
+                orderId,
+                paymentId,
+                bankReferenceNumber,
+                paymentTime,
+                otp:OTP,
+                remainingTime : totalTime,
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Order created Successfully',
+            });
         }
         catch(e)
         {
-            console.log("Error occured while fetching order summary during creation of order : " , e);
+            console.log("Error occured while creating order or while fetching user data while creating order:", e);
             return res.status(500).json({
-                success : false,
-                message : e.message()
-            })
-
+                success: false,
+                message: "Unable to create order."
+            });
         }
-        finally{
+        finally
+        {
             release();
         }
 
-       
-
-        let OTP;
-        do{
-             let starting = 1000 + 10 * (
-            (summaryResponse.onGoingOrders > 0 ? summaryResponse.onGoingOrders - 1 : 0) +
-            summaryResponse.UnreceivedOrders +
-            summaryResponse.cancelledOrders +
-            summaryResponse.orderHistory
-            );
-
-            let modification = Math.floor(Math.random() * 10); // random 0-9
-            OTP = starting + modification;
-            
-        }while(OTP in summaryResponse.usedOTP)
-
-        const ongoingOrderResponse = await onGoingOrders.find({vendor : isVendorValid._id , orderStatus :"waiting"})
-                                                        .populate("user");
-
-        let totalTime = 0;
-        let pageCount = 0;
         
-        const currentTime = new Date();
-        
-        let len = ongoingOrderResponse.length;
-
-        ongoingOrderResponse.forEach(order => {
-
-            let n = order.documents.length;
-
-            for(let i=0 ; i<n ; i++)
-            {
-                pageCount +=order.documents[i].pageCount;
-                console.log("pageCount : " , pageCount);
-            }
-            
-        })
-
-        
-
-        totalTime = pageCount * 1.25; //in sec
-        console.log("totalTime insec: " , totalTime);
-        totalTime = Math.floor(totalTime / 60); //in mins
-        totalTime = totalTime + len*0.75; //additional time of 10 mins
-
-        console.log("totalTime : " , totalTime);
-
-
-        // then creating the entry in the onGoing DB
-        const onGoingDBResponse = await onGoingOrders.create({
-            user: isUserValid._id,
-            vendor: isVendorValid._id,
-            documents: filesWithConfigs,
-            price,
-            orderId,
-            paymentId,
-            bankReferenceNumber,
-            paymentTime,
-            otp:OTP,
-            remainingTime : totalTime,
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: 'Order created Successfully',
-        });
 
     } catch (e) {
         console.log('Error occured while creating the order : ', e);

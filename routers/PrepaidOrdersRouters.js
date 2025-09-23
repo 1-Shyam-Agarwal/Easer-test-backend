@@ -38,6 +38,8 @@ const { getAllSpecificOrderHistory} = require("../controllers/PrepaidOrderContro
 const {
     getAllSpecificOnGoingOrders,
     getSpecificOnlineOrderDetails,
+    getOngoingOrdersCount,
+    getAllSpecificUnreceivedOrders
 } = require('../controllers/PrepaidOrderControllers/GetOrders.js');
 
 // router.post("/get_all_orders_of_vendor" , auth , isCustomer , getAllOrdersOfVendor);
@@ -50,6 +52,8 @@ router.post(
 router.post('/get-specific-online-order', auth, getSpecificOnlineOrderDetails);
 // router.post("/get-all-specific-unreceived-orders" , auth , getAllSpecificUnreceivedOrders);
 router.post("/fetch-order-history",auth,getAllSpecificOrderHistory);
+router.get("/fetch-unreceived-order" , auth , isVendor , getAllSpecificUnreceivedOrders)
+router.get('/get-order-count' , auth , isVendor , getOngoingOrdersCount);
 
 // // *************************************************************************************************************************
 
