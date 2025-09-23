@@ -79,7 +79,7 @@ router.post("/complete-user-order" ,auth ,isVendor,completeOrder );
 router.post("/get-time-estimate-and-orders-count" , auth , isCustomer , ongoingOrderCount_TimeCalculation );
 
 
-const {validateOrderAndPriceGeneration} = require("../controllers/PrepaidOrderControllers/validation.js");
+const {validateOrderAndPriceGeneration} = require("../controllers/PrepaidOrderControllers/Validation.js");
 
 router.post("/validate-order-and-generate-price" , auth , isCustomer , validateOrderAndPriceGeneration);
 
