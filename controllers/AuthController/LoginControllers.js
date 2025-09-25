@@ -228,7 +228,6 @@ async function checkLoginPasswordController(req, res) {
     try {
         user = await usersCollection
             .findOne({ email: email.toLowerCase().trim() })
-            .select('profileImage role password');
 
         if (!user) {
             return res.status(409).json({
@@ -272,6 +271,7 @@ async function checkLoginPasswordController(req, res) {
         try {
 
             // Ensure sessions field exists
+            console.log("user.sessions" , user.sessions);
             if (!user.sessions) {
                 user.sessions = [];
             }

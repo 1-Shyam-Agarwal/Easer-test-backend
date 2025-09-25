@@ -28,8 +28,8 @@ const corsOption = {
     ],
     credentials: true,
 };
+App.set('trust proxy', 1); // trust first proxy (Render)
 
-// App.set('trust proxy', 1); // or true
 
 App.use(cors(corsOption));
 

@@ -147,3 +147,7 @@ const {
 } = require("../controllers/AuthController/LoginControllers.js");
 
 router.put("/logout" , auth , logoutController);
+
+
+const {tokenValidator} = require("../controllers/Token.js");
+router.get("/validate-token" , auth , tokenValidator);
