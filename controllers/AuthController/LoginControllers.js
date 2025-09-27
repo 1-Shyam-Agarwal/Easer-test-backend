@@ -301,6 +301,8 @@ async function checkLoginPasswordController(req, res) {
             });
         }
 
+        
+
         return res.status(200).json({
             success: true,
             easerSecurityTicket: token,

@@ -21,14 +21,12 @@ const portNo = process.env.PORT || 4000;
 // Enable CORS for all routes
 const corsOption = {
     origin: [
-        'http://localhost:3000',
         'https://easer.co.in',
         'https://www.easer.co.in',
         'https://easer-frontend-testing.vercel.app'
     ],
     credentials: true,
 };
-App.set('trust proxy', 1); // trust first proxy (Render)
 
 
 App.use(cors(corsOption));
@@ -65,4 +63,4 @@ App.use('/api/v1', prepaidOrdersRouters);
 App.use('/api/v1', resetDetailsRouters);
 App.use("/api/v1" , NotificationRouters);
 
-App.listen(5000, "0.0.0.0", () => console.log("Server running"));
+App.listen(portNo, () => console.log("Server running"));
