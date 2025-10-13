@@ -44,7 +44,8 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
         if (role === 'customer') {
             response = await onGoingOrders.find({
                 user: id,
-                orderStatus: { $in: ["waiting", "completed"] }
+                orderStatus: { $in: ["waiting", "completed"] },
+                paymentStatus : "paid"
                 })
                 .select('-_id')
                 .populate({
@@ -59,12 +60,12 @@ exports.getAllSpecificOnGoingOrders = async (req, res) => {
                     path: 'user',
                     select: '-_id firstName lastName email mobileNumber',
                 })
-                .sort({ orderedAt: 1 });
+                .sort({ orderedAt: -1 });
         }
 
         if (role === 'vendor') {
             response = await onGoingOrders
-                .find({ vendor: id ,orderStatus:'waiting'})
+                .find({ vendor: id ,orderStatus:'waiting', paymentStatus : "paid"})
                 .select('-_id')
                 .populate({
                     path: 'user',
@@ -224,7 +225,7 @@ exports.getAllSpecificOrderHistory = async (req, res) => {
         let response = '';
         if (role === 'vendor') {
             response = await onGoingOrders
-                .find({vendor : id , orderStatus:"received"})
+                .find({vendor : id , orderStatus:"received" , paymentStatus : "paid"})
                 .select('-_id')
                 .populate({
                     path: 'vendor',
@@ -243,7 +244,7 @@ exports.getAllSpecificOrderHistory = async (req, res) => {
 
         if (role === 'customer') {
             response = await onGoingOrders
-                .find({user:id , orderStatus:"received"})
+                .find({user:id , orderStatus:"received" ,  paymentStatus : "paid"})
                 .select('-_id')
                 .populate({
                     path: 'vendor',
@@ -336,7 +337,7 @@ exports.getSpecificOnlineOrderDetails = async (req, res) => {
     let orderDetails = '';
     try {
         orderDetails = await onGoingOrders
-            .find({ orderId: onlineOrderId })
+            .findOne({ orderId: onlineOrderId , paymentStatus :"paid" })
             .select('-_id ')
             .populate({
                 path: 'vendor',
@@ -429,7 +430,8 @@ exports.getOngoingOrdersCount = async(req,res)=>
     {
         const count = await onGoingOrders.countDocuments({ 
             vendor: id, 
-            orderStatus: "waiting" 
+            orderStatus: "waiting",
+            paymentStatus : "paid" 
         });
 
         return res.status(200).json({

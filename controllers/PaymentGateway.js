@@ -1,7 +1,16 @@
 const { Cashfree } = require('cashfree-pg');
+const {mongoose} = require("mongoose");
 // const {decrypt} = require("../utils/EncryptionAndDecryption.jsx");
 const usersCollection = require('../models/Users.js');
+const ongoingOrder = require("../models/OrderTypes/OngoingOrders.js")
 const { v4: uuidv4 } = require('uuid');
+const {Mutex}  = require('async-mutex');
+const orderSummary = require("../models/orderSummary.js")
+const usedOrderOTP = require("../models/TemporaryStorage/usedOTP.js");
+const axios = require('axios');
+const { verifyPaymentLogic } = require('../utils/paymentVerifier');
+const {pollUnpaidOrdersForUser} = require('../utils/paymentVerifier.js');
+const mutex = new Mutex();
 
 require('dotenv').config();
 
@@ -10,25 +19,13 @@ Cashfree.XClientSecret = process.env.CLIENT_SECRET;
 Cashfree.XEnvironment = Cashfree.Environment.SANDBOX;
 
 exports.createPGOrder = async (req, res) => {
-    const customerId = req.tokenPayload.id;
 
     try {
         const { vendorId } = req.body;
-        const price = req.invoice.price.price
-
-        if (!vendorId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vendor id is required.',
-            });
-        }
-
-        if (!(typeof vendorId === 'string')) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vendor id should be a string.',
-            });
-        }
+        const { filesWithConfigs } = req.body;
+        const price = req.invoice.price.price;
+        const customerData = req.customerData;
+        const response = req.vendorData;
 
         if (!price) {
             return res.status(400).json({
@@ -51,28 +48,15 @@ exports.createPGOrder = async (req, res) => {
             });
         }
 
-        const response = await usersCollection
-            .findOne({ userId: vendorId })
-            .populate('vendorAdditionalDetails');
-
-        if (!response) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vendor id is invalid.',
-            });
-        }
-
-        const customerData = await usersCollection.findOne({
-            _id: customerId,
-            role: 'customer',
+        const orderId = uuidv4();
+        //Create order in Ongoing Orders
+        const onGoingDBResponse = await ongoingOrder.create({
+                user: customerData._id,
+                vendor: response._id,
+                documents: filesWithConfigs,
+                price,
+                orderId
         });
-
-        if (!customerData) {
-            return res.status(400).json({
-                success: false,
-                message: 'Customer id is invalid.',
-            });
-        }
         
         const {
             userId: customerUserId,
@@ -86,12 +70,13 @@ exports.createPGOrder = async (req, res) => {
         let request = {
             order_meta: {
                 payment_methods: "upi",
-                return_url: "http://localhost:3000/check-order",
-                // notify_url: "https://localhost:3000"
+                return_url: "https://www.easer.co.in/dashboard/ongoing-orders",
+                notify_url : "https://webhook.site/fdb03e69-181d-435f-9d79-1a3a95cbdf70"
+                
             },
             order_amount: price,
             order_currency: 'INR',
-            order_id: uuidv4(),
+            order_id:orderId ,
             customer_details: {
                 customer_id: customerUserId,
                 customer_phone: customerMobileNumber,
@@ -105,7 +90,11 @@ exports.createPGOrder = async (req, res) => {
                 return res.status(200).json({
                     success: true,
                     message: 'PG order is created successfully',
-                    data: response.data,
+                    data: 
+                    {
+                        payment_session_id : response?.data?.payment_session_id,
+                        order_id : response?.data?.order_id
+                    },
                 });
             })
             .catch((error) => {
@@ -129,60 +118,35 @@ exports.createPGOrder = async (req, res) => {
 };
 
 exports.verifyPayment = async (req, res) => {
-    try {
-        let { orderId, vendorId } = req.body;
+  const notifyUrlResponse = req.notifyUrlResponse || null;
+  const orderId = notifyUrlResponse?.data?.order?.order_id ?? req.body.orderId;
 
-        console.log('skjndnkcskjksckjskajskkljld : ', req.body);
-        if (!vendorId) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vendor id is required.',
-            });
-        }
-
-        if (!(typeof vendorId === 'string')) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vendor id should be a string.',
-            });
-        }
-
-        const response = await usersCollection
-            .findOne({ userId: vendorId })
-            .populate('vendorAdditionalDetails');
-
-        if (!response) {
-            return res.status(400).json({
-                success: false,
-                message: 'Vendorid is invalid.',
-            });
-        }
-
-        // const CLIENT_ID = decrypt(response.vendorAdditionalDetails.paymentGatewayInfo.MID);
-        // const CLIENT_SECRET = decrypt(response.vendorAdditionalDetails.paymentGatewayInfo.saltKey);
-
-        Cashfree.PGOrderFetchPayments('2023-08-01', orderId)
-            .then((response) => {
-                return res.status(200).json({
-                    success: true,
-                    message: 'payment verified successfully',
-                    response: response.data,
-                });
-            })
-            .catch((error) => {
-                console.log(
-                    'error occured while verifying the payment : ',
-                    error
-                );
-                return res.status(500).json({
-                    success: false,
-                    message: error.message,
-                });
-            });
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
+  const result = await verifyPaymentLogic({ orderId, notifyUrlResponse });
+  return res.status(result.statusCode).json(result.body);
 };
+
+exports.pollUnpaidOrdersController = async (req, res) => {
+  try {
+    const userId = req.tokenPayload?.id || req.body.userId; // get user ID safely
+    if (!userId) {
+      return res.status(400).json({ success: false, message: "User ID missing" });
+    }
+
+    const results = await pollUnpaidOrdersForUser(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Polling complete",
+      results,
+    });
+  } catch (err) {
+    console.error("Error in polling controller:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+
+

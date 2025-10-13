@@ -9,12 +9,5 @@ const usedOrderOTPSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Ensure only one document exists in this collection
-usedOrderOTPSchema.statics.getSingleton = async function () {
-  let doc = await this.findOne();
-  if (!doc) {
-    doc = await this.create({ orderOtps: [] });
-  }
-  return doc;
-};
 
 module.exports = mongoose.model('UsedOrderOTP', usedOrderOTPSchema);

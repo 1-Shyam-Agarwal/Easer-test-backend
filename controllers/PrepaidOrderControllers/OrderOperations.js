@@ -31,7 +31,7 @@ exports.completeOrder = async(req,res)=>
     try
     {
 
-        const ongoingOrder = await OngoingOrders.findOne({ orderId , vendor:id})
+        const ongoingOrder = await OngoingOrders.findOne({ orderId , vendor:id , paymentStatus : "paid"})
         .populate({
             path: "user",         
         });
@@ -55,8 +55,8 @@ exports.completeOrder = async(req,res)=>
 
         if(ongoingOrder.orderStatus !== "waiting")
         {
-            return res.status(500).json({
-                success : true,
+            return res.status(400).json({
+                success : false,
                 message : "This order is not in the waiting state."
             })
         }
@@ -64,7 +64,7 @@ exports.completeOrder = async(req,res)=>
         ongoingOrder.timeOfCompletion = new Date();
         ongoingOrder.orderStatus = "completed";
 
-        ongoingOrder.save();
+        await ongoingOrder.save();
 
         let sessions = ongoingOrder.user.sessions;
         let n = sessions.length;
@@ -439,7 +439,8 @@ exports.ongoingOrderCount_TimeCalculation = async(req , res)=>
     {
         const ongoingOrders = await OngoingOrders.find({
             vendor : vendorId , 
-            orderStatus: "waiting"
+            orderStatus: "waiting",
+            paymentStatus :"paid"
         });
 
         const count = ongoingOrders.length;
@@ -462,9 +463,8 @@ exports.ongoingOrderCount_TimeCalculation = async(req , res)=>
         
 
         let len = ongoingOrders.length;
-        totalTime = pageCount * 1.25; //in sec
-        totalTime = Math.ceil(totalTime / 60); //in mins
-        totalTime = Math.ceil(totalTime + 0.80*len); 
+        totalTime = Math.ceil((pageCount * 1.25) / 60);
+        totalTime = Math.ceil(totalTime + len*0.80 + 3);
 
         return res.status(200).json({
             success : true,
@@ -483,7 +483,6 @@ exports.ongoingOrderCount_TimeCalculation = async(req , res)=>
         })
     }
 }
-
 
 exports.createOrderHistory = async(req , res)=>
 {
@@ -523,7 +522,7 @@ exports.createOrderHistory = async(req , res)=>
     session.startTransaction();
     try
     {
-        const ongoingOrder = await OngoingOrders.findOne({ orderId, user: id }).session(session);
+        const ongoingOrder = await OngoingOrders.findOne({ orderId, user: id ,paymentStatus : "paid"}).session(session);
 
         if(!ongoingOrder)
         {
@@ -534,7 +533,15 @@ exports.createOrderHistory = async(req , res)=>
             }) 
         }
 
-        if(ongoingOrder.orderStatus === "waiting")
+        if(ongoingOrder.orderStatus !== "received")
+        {
+            return res.status(200).json({
+                success : true,
+                message : "You have already received this order."
+            })
+        }
+
+        if(ongoingOrder.orderStatus !== "completed")
         {
              await session.abortTransaction();
             return res.status(400).json({
@@ -542,16 +549,6 @@ exports.createOrderHistory = async(req , res)=>
                 message : "You can only receive order once it is completed."
             })
         }
-
-        if(ongoingOrder.orderStatus === "received")
-        {
-            await session.abortTransaction();
-            return res.status(400).json({
-                success : false,
-                message : "You have already received this order."
-            })
-        }
-
         
         ongoingOrder.orderStatus = "received";
         ongoingOrder.recievedBy = id;

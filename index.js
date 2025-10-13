@@ -23,7 +23,8 @@ const corsOption = {
     origin: [
         'https://easer.co.in',
         'https://www.easer.co.in',
-        'https://easer-frontend-testing.vercel.app'
+        'https://easer-frontend-testing.vercel.app',
+        'http://localhost:3000'
     ],
     credentials: true,
 };

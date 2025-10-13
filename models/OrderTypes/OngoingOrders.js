@@ -5,11 +5,13 @@ const onGoingOrdersSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'usersCollection',
+        required:true
     },
 
     vendor: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'usersCollection',
+        required:true
     },
 
     documents: [
@@ -27,8 +29,9 @@ const onGoingOrdersSchema = new mongoose.Schema({
 
     paymentStatus: {
         type: String,
+        enum : ["paid" , "unpaid"],
         required: true,
-        default: 'paid',
+        default: 'unpaid',
     },
 
     orderStatus: {
@@ -46,6 +49,7 @@ const onGoingOrdersSchema = new mongoose.Schema({
     orderedAt: {
         type: Date,
         default: Date.now,
+        required : true
     },
 
     orderId: {
@@ -55,7 +59,7 @@ const onGoingOrdersSchema = new mongoose.Schema({
 
     paymentTime: {
         type: Date,
-        required: true,
+
     },
 
     timeOfCompletion : {
@@ -73,7 +77,6 @@ const onGoingOrdersSchema = new mongoose.Schema({
 
     refunded :{
         type : Boolean,
-        enum : [true , false , null],
         default : null
     },
 
@@ -91,8 +94,6 @@ const onGoingOrdersSchema = new mongoose.Schema({
 
     otp: {
         type: String,
-        required: true,
-        unique: true,
     },
 
     
@@ -107,7 +108,6 @@ const onGoingOrdersSchema = new mongoose.Schema({
 
     remainingTime:{
         type: Number,
-        required: true
     }
 });
 

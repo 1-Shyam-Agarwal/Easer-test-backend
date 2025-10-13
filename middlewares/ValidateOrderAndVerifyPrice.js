@@ -1,6 +1,7 @@
 const usersCollection = require('../models/Users.js');
 
 exports.validateOrderAndPriceGenerationMiddleware = async (req, res , next) => {
+    
     try {
         const { filesWithConfigs } = req.body;
 
@@ -48,7 +49,6 @@ exports.validateOrderAndPriceGenerationMiddleware = async (req, res , next) => {
 
         for (let i = 0; i < filesWithConfigs.length; i++) {
             if (typeof filesWithConfigs[i] === 'object') {
-                console.log(Object.keys(filesWithConfigs[i]).length );
                 if (Object.keys(filesWithConfigs[i]).length === 11) {
                     if (
                         'file' in filesWithConfigs[i] &&
@@ -135,7 +135,6 @@ exports.validateOrderAndPriceGenerationMiddleware = async (req, res , next) => {
         // checking whether vendor is valid or not
         const isVendorValid = await usersCollection
             .findOne({ userId: vendorID, role: 'vendor' })
-            .select('-_id vendorAdditionalDetails collegeCode')
             .populate({
                 path: 'vendorAdditionalDetails',
                 select: '-_id priceSchema',
@@ -274,6 +273,8 @@ exports.validateOrderAndPriceGenerationMiddleware = async (req, res , next) => {
         }
 
         req.invoice = invoice;
+        req.customerData = isUserValid;
+        req.vendorData = isVendorValid;
 
         next();
 

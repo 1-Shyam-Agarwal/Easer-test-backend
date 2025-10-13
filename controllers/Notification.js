@@ -77,9 +77,9 @@ async function storeFCMToken(req, res) {
 }
 
 
-async function sendNotification(fcmToken, title , body) {
-  try {
 
+async function sendNotification(fcmToken, title, body) {
+  try {
     const message = {
       token: fcmToken,
       notification: { title, body },
@@ -88,15 +88,19 @@ async function sendNotification(fcmToken, title , body) {
     };
 
     const response = await messaging.send(message);
+    console.log("Notification sent successfully:", response);
 
-    return {
-      success: true,
-      messageId: response,
-    };
   } catch (error) {
-    console.error("Error sending notification:", error);
+    console.error(" Error sending notification:", error);
+
+    // Handle invalid or expired tokens
+    if (error.code === "messaging/registration-token-not-registered") {
+      console.log("Token invalid or expired. Removing from database...");
+    }
+
     return { success: false, message: error.message };
   }
 }
+
 
 module.exports = { sendNotification ,storeFCMToken };

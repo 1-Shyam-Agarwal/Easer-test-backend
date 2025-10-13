@@ -10,24 +10,16 @@ const {
 
 // // *************************************************************************************************************************
 
-//                                                 //   Place Order
+//                                                 //   Create Order history
 
 // // ***************************************************************************************************************************
 
-// const {validateFileFormatAndSizeController , deleteFileFromCloudinary ,validateOrder ,cancellationOfDocuments , uploadDocument } = require("../controllers/PrepaidOrderControllers/printOrder.js");
-const {
-    createOrder,
-} = require('../controllers/PrepaidOrderControllers/CreateOrder.js');
 
 const {
     createOrderHistory
 } = require("../controllers/PrepaidOrderControllers/OrderOperations.js");
 
-// router.post("/validate-file-format-and-size-and-upload",auth,isUser, validateFileFormatAndSizeController , uploadDocument);
-// router.post("/validate-order", auth , isUser , validateOrder);
-router.post('/create-order', auth, isCustomer, createOrder);
 router.post('/create-order-history' , auth , isCustomer , createOrderHistory);
-// router.post("/delete-document" ,auth , isUser ,deleteFileFromCloudinary);
 
 // // *************************************************************************************************************************
 
@@ -55,17 +47,7 @@ router.post("/fetch-order-history",auth,getAllSpecificOrderHistory);
 router.get("/fetch-unreceived-order" , auth , isVendor , getAllSpecificUnreceivedOrders)
 router.get('/get-order-count' , auth , isVendor , getOngoingOrdersCount);
 
-// // *************************************************************************************************************************
 
-//                                                 //   Cancellation of Order
-
-// // ***************************************************************************************************************************
-
-// const{setCancellationIndicators, desetCancellationIndicators , orderCancellation } = require("../controllers/PrepaidOrderControllers/OrderCancellation.js");
-
-// router.post("/set-cancellation-indicators" , auth , setCancellationIndicators);
-// router.post("/deset-cancellation-indicators" , auth , desetCancellationIndicators);
-// router.post("/order-cancellation" , auth , orderCancellation);
 
 // // *************************************************************************************************************************
 
