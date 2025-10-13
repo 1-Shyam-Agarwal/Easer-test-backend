@@ -22,9 +22,7 @@ const portNo = process.env.PORT || 4000;
 const corsOption = {
     origin: [
         'https://easer.co.in',
-        'https://www.easer.co.in',
-        'https://easer-frontend-testing.vercel.app',
-        'http://localhost:3000'
+        'https://www.easer.co.in'
     ],
     credentials: true,
 };
